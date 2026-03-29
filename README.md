@@ -54,11 +54,33 @@ VITE_SUPABASE_ANON_KEY=sua-anon-key-aqui
 VITE_SUPABASE_SERVICE_ROLE_KEY=sua-service-role-key-aqui
 ```
 
-### 4. Iniciar o servidor de testes
+### 4. Iniciar o servidor de desenvolvimento
 ```bash
 npm run dev
 ```
 Acesse a URL informada pelo terminal (provavelmente `http://localhost:5173`).
+
+---
+
+## 🗄️ Configuração do Backend (Supabase)
+
+Para que o sistema funcione corretamente em um novo projeto do Supabase, você precisa configurar o banco de dados e as Edge Functions:
+
+### 1. Banco de Dados (SQL)
+No painel do Supabase, vá em **SQL Editor** e execute o conteúdo do arquivo:
+*   [`supabase/migrations/20260329120000_schema.sql`](./supabase/migrations/20260329120000_schema.sql) — Cria as tabelas, RLS e triggers.
+*   [`supabase/seed.sql`](./supabase/seed.sql) — Popula o calendário de dias ativos de 20/04 a 06/05 (Período 1) e 07/05 a 20/05 (Período 2).
+
+### 2. Edge Functions
+Este sistema utiliza lógica server-side para garantir a fila atômica. Usando a [Supabase CLI](https://supabase.com/docs/guides/cli):
+```bash
+supabase functions deploy gerar-senha
+supabase functions deploy chamar-proximo
+```
+*(Certifique-se de configurar as variáveis `SUPABASE_URL` e `SUPABASE_SERVICE_ROLE_KEY` no painel de Segredos das Functions no console do Supabase)*.
+
+### 3. Autenticação Inicial
+Crie o primeiro usuário administrador manualmente no painel **Authentication > Users** do Supabase. Após criar, vá na tabela `profiles` e altere o campo `perfil` para `admin`.
 
 ---
 
