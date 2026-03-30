@@ -67,3 +67,6 @@ Thumbs.db
 .tmp/
 tmp/
 docs/
+
+# MCP (Model Context Protocol)
+.mcp.json
