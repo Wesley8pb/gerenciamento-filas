@@ -162,3 +162,13 @@ CREATE TRIGGER on_auth_user_created
 -- Habilitar realtime para a fila
 ALTER PUBLICATION supabase_realtime ADD TABLE public.eleitores_fila;
 ALTER PUBLICATION supabase_realtime ADD TABLE public.configuracao_dias;
+
+-- 8. FUNÇÃO RPC PARA OBTER TIMESTAMP DO SERVIDOR
+-- Usada para evitar manipulação de data/hora no cliente
+CREATE OR REPLACE FUNCTION public.get_server_timestamp()
+RETURNS TIMESTAMPTZ
+LANGUAGE SQL
+SECURITY DEFINER
+AS $$
+    SELECT now();
+$$;

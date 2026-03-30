@@ -9,34 +9,49 @@ let authInitialized = false;
 export function useAuth() {
   const { user, isLoading, isAuthenticated, setUser, setLoading, clear } = useAuthStore();
 
-  // Fetch user profile with timeout
-  const fetchProfile = useCallback(async (userId: string): Promise<Profile | null> => {
-    try {
-      console.log('[useAuth] Fetching profile for user:', userId);
+  // Fetch user profile with timeout and retry
+  const fetchProfile = useCallback(async (userId: string, retries = 2): Promise<Profile | null> => {
+    for (let attempt = 0; attempt <= retries; attempt++) {
+      try {
+        if (attempt > 0) {
+          console.log(`[useAuth] Retrying fetchProfile, attempt ${attempt + 1}/${retries + 1}`);
+          await new Promise(resolve => setTimeout(resolve, 500 * attempt)); // Espera crescente entre tentativas
+        }
 
-      const timeout = new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error('fetchProfile timeout')), 5000)
-      );
+        console.log('[useAuth] Fetching profile for user:', userId);
 
-      const query = supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', userId)
-        .single();
+        const timeout = new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error('fetchProfile timeout')), 5000)
+        );
 
-      const { data, error } = await Promise.race([query, timeout]) as Awaited<typeof query>;
+        const query = supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', userId)
+          .single();
 
-      if (error) {
-        console.error('[useAuth] Error fetching profile:', error);
-        return null;
+        const { data, error } = await Promise.race([query, timeout]) as Awaited<typeof query>;
+
+        if (error) {
+          if (error.code === 'PGRST116') {
+            // Perfil não encontrado - não fazer retry, retornar null
+            console.error('[useAuth] Profile not found for user:', userId);
+            return null;
+          }
+          console.error('[useAuth] Error fetching profile (attempt ' + (attempt + 1) + '):', error);
+          if (attempt === retries) return null;
+          continue; // Tentar novamente
+        }
+
+        console.log('[useAuth] Profile fetched successfully:', data);
+        return data as Profile;
+      } catch (err) {
+        console.error('[useAuth] Exception fetching profile (attempt ' + (attempt + 1) + '):', err);
+        if (attempt === retries) return null;
+        // Continua para próxima tentativa
       }
-
-      console.log('[useAuth] Profile fetched successfully:', data);
-      return data as Profile;
-    } catch (err) {
-      console.error('[useAuth] Exception fetching profile:', err);
-      return null;
     }
+    return null;
   }, []);
 
   // Initialize auth state once (globally)
@@ -47,7 +62,49 @@ export function useAuth() {
 
       if ((event === 'SIGNED_IN' || event === 'INITIAL_SESSION') && session?.user) {
         const profile = await fetchProfile(session.user.id);
-        setUser(profile);
+
+        if (profile) {
+          setUser(profile);
+        } else {
+          // Se não encontrou o perfil mas tem sessão válida, não deslogar
+          // Apenas marcar como não autenticado mas manter a sessão do Supabase
+          // Isso evita o logout silencioso quando há instabilidade na rede
+          console.warn('[useAuth] Profile not found but session exists. Keeping session, marking as unauthenticated.');
+
+          // Se for INITIAL_SESSION e não achou perfil, pode ser um usuário órfão
+          // Tentar recriar o perfil a partir dos metadados do usuário
+          if (event === 'INITIAL_SESSION') {
+            const userMetadata = session.user.user_metadata;
+            if (userMetadata?.nome || session.user.email) {
+              console.log('[useAuth] Attempting to recreate profile from user metadata');
+              try {
+                const { error: insertError } = await supabase.from('profiles').insert({
+                  id: session.user.id,
+                  email: session.user.email!,
+                  nome: userMetadata.nome || session.user.email!.split('@')[0],
+                  perfil: userMetadata.perfil || 'atendente',
+                  ativo: true,
+                  primeiro_acesso: true
+                });
+
+                if (!insertError) {
+                  // Tentar buscar o perfil novamente
+                  const newProfile = await fetchProfile(session.user.id, 0);
+                  if (newProfile) {
+                    setUser(newProfile);
+                    return;
+                  }
+                }
+              } catch (e) {
+                console.error('[useAuth] Failed to recreate profile:', e);
+              }
+            }
+          }
+
+          // Se chegou aqui, não conseguiu recuperar o perfil
+          // Marcar como não autenticado mas NÃO fazer signOut
+          setLoading(false);
+        }
       } else if (event === 'SIGNED_OUT') {
         clear();
       }
@@ -75,14 +132,49 @@ export function useAuth() {
 
           if (session?.user) {
             const profile = await fetchProfile(session.user.id);
-            setUser(profile);
+
+            if (profile) {
+              setUser(profile);
+            } else {
+              // Se não encontrou o perfil mas tem sessão válida, tentar recriar
+              console.warn('[useAuth] Profile not found during init. Attempting to recreate from metadata.');
+
+              const userMetadata = session.user.user_metadata;
+              if (userMetadata?.nome || session.user.email) {
+                try {
+                  const { error: insertError } = await supabase.from('profiles').insert({
+                    id: session.user.id,
+                    email: session.user.email!,
+                    nome: userMetadata.nome || session.user.email!.split('@')[0],
+                    perfil: userMetadata.perfil || 'atendente',
+                    ativo: true,
+                    primeiro_acesso: true
+                  });
+
+                  if (!insertError) {
+                    const newProfile = await fetchProfile(session.user.id, 0);
+                    if (newProfile) {
+                      setUser(newProfile);
+                      return;
+                    }
+                  }
+                } catch (e) {
+                  console.error('[useAuth] Failed to recreate profile during init:', e);
+                }
+              }
+
+              // Se não conseguiu recuperar, apenas marcar como não autenticado
+              // NÃO fazer signOut - isso evita o logout silencioso
+              console.warn('[useAuth] Could not recover profile. User needs to login again.');
+              setUser(null);
+            }
           } else {
             setUser(null);
           }
         } catch (err) {
           console.error('[useAuth] Init error (timeout ou falha):', err);
-          // Limpar sessão problemática
-          try { await supabase.auth.signOut(); } catch (_) { /* ignore */ }
+          // Em caso de timeout, NÃO fazer signOut automaticamente
+          // Apenas marcar como não autenticado
           setUser(null);
         }
       };

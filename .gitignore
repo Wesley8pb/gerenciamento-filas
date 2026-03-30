@@ -70,3 +70,6 @@ docs/
 
 # MCP (Model Context Protocol)
 .mcp.json
+
+# Lições aprendidas
+LESSONS.md

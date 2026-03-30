@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { isDiaAtivo, getPeriodo } from '../utils/calendario';
+import { fetchConfiguracaoDia } from '../services/configuracao';
 
 interface DiaAtivoState {
   isAtivo: boolean;
@@ -13,6 +14,7 @@ interface DiaAtivoState {
 /**
  * Hook que verifica se o dia atual é um dia ativo de atendimento
  * Usa timestamp do servidor Supabase para evitar manipulação do cliente
+ * Busca configuração do banco de dados para suportar datas dinâmicas
  */
 export function useDiaAtivo(): DiaAtivoState {
   const [state, setState] = useState<DiaAtivoState>({
@@ -44,10 +46,31 @@ export function useDiaAtivo(): DiaAtivoState {
         const serverDate = new Date(data as string);
         const dataStr = serverDate.toISOString().split('T')[0];
 
-        // Verificar período
-        const periodo = getPeriodo(serverDate);
+        // Buscar configuração do dia no banco de dados
+        const configDia = await fetchConfiguracaoDia(dataStr);
 
-        // Verificar se é dia ativo (apenas Período 1 para recepção presencial)
+        // Se existe configuração no banco, usar ela
+        if (configDia) {
+          const periodo = configDia.periodo;
+          const ativo = !configDia.bloqueado;
+
+          let motivo = '';
+          if (!ativo) {
+            motivo = configDia.observacao || 'Dia bloqueado. Não há atendimento.';
+          }
+
+          setState({
+            isAtivo: ativo && periodo === 1,
+            periodo,
+            motivo,
+            loading: false,
+            dataAtual: dataStr,
+          });
+          return;
+        }
+
+        // Fallback: verificar período e datas hardcoded (para compatibilidade)
+        const periodo = getPeriodo(serverDate);
         const ativo = isDiaAtivo(serverDate);
 
         let motivo = '';

@@ -62,7 +62,40 @@ function useAuth() {
 }
 ```
 
-### Resumo das boas práticas
+### Problema 3: Logout silencioso frequente - Perfil não encontrado mas sessão existe
+
+O sistema retornava para a tela de login de forma súbita e frequente, especialmente quando havia instabilidade na rede ou quando o Supabase estava lento.
+
+**Causa:** Quando `fetchProfile` retornava `null` (por timeout, erro de rede ou perfil não existir), o código chamava `setUser(null)`, que definia `isAuthenticated: false` e causava o redirecionamento para o login, mesmo havendo uma sessão válida no Supabase.
+
+**Solução implementada:**
+1. **Adicionar retry no fetchProfile:** Tentativas automáticas (até 3) com espera crescente entre elas
+2. **Não fazer signOut quando perfil é null:** Se há sessão válida mas o perfil não é encontrado, não deslogar automaticamente
+3. **Recriar perfil automaticamente:** Se o usuário tem metadados válidos (nome/email), tenta inserir o perfil na tabela `profiles` automaticamente
+4. **Tratamento diferenciado para erros:** Erro `PGRST116` (não encontrado) não dispara retry, apenas timeouts/similar
+
+```ts
+// Antes: Deslogava automaticamente
+const profile = await fetchProfile(session.user.id);
+setUser(profile); // Se null, isAuthenticated = false
+
+// Depois: Tenta recuperar antes de deslogar
+const profile = await fetchProfile(session.user.id);
+if (profile) {
+  setUser(profile);
+} else {
+  // Tenta recriar perfil dos metadados
+  // Se falhar, apenas marca como não autenticado sem signOut
+}
+```
+
+**Boas práticas adicionadas:**
+- Retry com backoff exponencial (500ms, 1000ms, 1500ms)
+- Diferenciação entre "perfil não existe" (PGRST116) e "erro de rede/timeout"
+- Recuperação automática de perfis órfãos (quando auth.user existe mas profiles não)
+- Nunca chamar `signOut()` automaticamente em caso de erro - deixa o usuário tentar novamente
+
+### Resumo das boas práticas - Seção 1
 
 | Prática | Motivo |
 |---------|--------|
@@ -70,7 +103,8 @@ function useAuth() {
 | Timeout em chamadas ao Supabase | Evita tela travada se o backend estiver lento |
 | Timeout global de segurança | Rede de segurança caso qualquer etapa trave |
 | Flag de inicialização no nível do módulo | Evita múltiplas execuções em custom hooks compartilhados |
-| `signOut()` no catch de timeout | Limpa tokens problemáticos automaticamente |
+| Retry com backoff em fetchProfile | Recupera de falhas transientes de rede |
+| Não fazer signOut automático em erro | Evita logout silencioso, permite retry manual |
 
 ## 2. Criação Administrativa de Usuários e Sincronização de Perfis (28/03/2026)
 

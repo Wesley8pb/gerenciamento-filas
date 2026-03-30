@@ -221,6 +221,7 @@ export function AtendimentoPage() {
               </div>
               <div className="bg-gray-50 rounded-lg p-4 mb-4">
                 <p className="text-lg font-medium text-gray-800">{eleitorChamado.nome}</p>
+                <p className="text-lg font-medium text-gray-800">{format(parseISO(eleitorChamado.data_nascimento), 'dd/MM/yyyy')}</p>
                 <div className="flex items-center space-x-4 mt-2 text-sm text-gray-600">
                   <span>Idade: {calcularIdade(eleitorChamado.data_nascimento)} anos</span>
                   {eleitorChamado.pcd && (
