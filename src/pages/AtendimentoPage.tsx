@@ -101,7 +101,7 @@ export function AtendimentoPage() {
       setEleitorChamado(eleitor);
       notify.success(`Senha ${String(eleitor.senha).padStart(3, '0')} chamada!`);
       carregarDados();
-    } catch (err: any) {
+    } catch (err: unknown) {
       notify.error(getFriendlyError(err));
     } finally {
       setChamando(false);
@@ -120,7 +120,7 @@ export function AtendimentoPage() {
       setTempoDesfazer(120); // 2 minutos
       setEleitorChamado(null);
       carregarDados();
-    } catch (err: any) {
+    } catch (err: unknown) {
       notify.error(getFriendlyError(err));
     } finally {
       setFinalizando(false);
@@ -136,7 +136,7 @@ export function AtendimentoPage() {
       setUltimoFinalizado(null);
       setTempoDesfazer(0);
       carregarDados();
-    } catch (err: any) {
+    } catch (err: unknown) {
       notify.error(getFriendlyError(err));
     }
   };
@@ -148,7 +148,7 @@ export function AtendimentoPage() {
       await registrarRetorno(eleitor.id, user.id);
       notify.success('Retorno registrado!');
       carregarDados();
-    } catch (err: any) {
+    } catch (err: unknown) {
       notify.error(getFriendlyError(err));
     }
   };

@@ -1,7 +1,7 @@
 import { supabase } from '../lib/supabase';
 import type { EleitorFila, LogAcao, Profile } from '../types';
 
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+
 
 interface CadastrarEleitorParams {
   dia_atendimento: string;

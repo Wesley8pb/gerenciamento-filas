@@ -41,8 +41,8 @@ export function GerenciarFilaPage() {
         if (diasAtivos.length > 0) {
           setSelectedDia(diasAtivos[0].data);
         }
-      } catch (err: any) {
-        setError(err.message);
+      } catch (err: unknown) {
+        setError(err instanceof Error ? err.message : 'Erro ao carregar dias');
       }
     };
     loadDias();
@@ -56,8 +56,8 @@ export function GerenciarFilaPage() {
         setLoading(true);
         const data = await fetchFilaDia(selectedDia);
         setFila(data);
-      } catch (err: any) {
-        setError(err.message);
+      } catch (err: unknown) {
+        setError(err instanceof Error ? err.message : 'Erro ao carregar fila');
       } finally {
         setLoading(false);
       }
@@ -90,8 +90,8 @@ export function GerenciarFilaPage() {
       setSuccess('Eleitor excluído com sucesso');
       setTimeout(() => setSuccess(null), 3000);
       setShowExcluirModal(false);
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Erro ao excluir eleitor');
     } finally {
       setExcluindo(false);
     }
@@ -128,8 +128,8 @@ export function GerenciarFilaPage() {
       setSuccess('Ordem alterada com sucesso');
       setTimeout(() => setSuccess(null), 3000);
       setShowOrdemModal(false);
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Erro ao alterar ordem');
     } finally {
       setAlterando(false);
     }
