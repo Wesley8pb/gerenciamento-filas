@@ -41,7 +41,7 @@ export interface RemarcacaoHistorico {
   pcd: boolean;
   dia_original: string;
   dia_remarcado: string;
-  remarcao_count: number;
+  remarcacao_count: number;
 }
 
 /**
@@ -183,9 +183,9 @@ export async function fetchResumoPeriodo(filtros: FiltrosRelatorio): Promise<Dia
 export async function fetchRemarcacoesHistorico(periodo?: 'periodo1' | 'periodo2'): Promise<RemarcacaoHistorico[]> {
   let query = supabase
     .from('eleitores_fila')
-    .select('id, nome, data_nascimento, fila, pcd, remarcado_de, dia_atendimento, remarcao_count')
+    .select('id, nome, data_nascimento, fila, pcd, remarcado_de, dia_atendimento, remarcacao_count')
     .not('remarcado_de', 'is', null)
-    .gt('remarcao_count', 0)
+    .gt('remarcacao_count', 0)
     .order('dia_atendimento', { ascending: true });
 
   if (periodo === 'periodo1') {
@@ -205,6 +205,6 @@ export async function fetchRemarcacoesHistorico(periodo?: 'periodo1' | 'periodo2
     pcd: e.pcd,
     dia_original: e.remarcado_de || '',
     dia_remarcado: e.dia_atendimento,
-    remarcao_count: e.remarcao_count || 0,
+    remarcacao_count: e.remarcacao_count || 0,
   }));
 }

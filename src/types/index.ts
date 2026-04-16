@@ -45,7 +45,7 @@ export interface EleitorFila {
   horario_chamada: string | null;
   horario_finalizacao: string | null;
   remarcado_de: string | null;
-  remarcao_count: number;
+  remarcacao_count: number;
   retorno_count: number;
   servidor_cadastro_id: string;
   servidor_atendimento_id: string | null;

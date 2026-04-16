@@ -1,4 +1,4 @@
-import { format, parseISO, isToday, isAfter } from 'date-fns';
+import { format, parseISO, isAfter } from 'date-fns';
 
 // Dias ativos do Período 1 (13/04 a 06/05, excluindo feriados)
 const PERIODO_1_ATIVOS: string[] = [
@@ -106,10 +106,11 @@ export function getDiasBloqueados(): Date[] {
 
 /**
  * Verifica se é dia de agendamento liberado (06/05 após 18h)
+ * Correção: Simplificada lógica confusa de precedência de operadores
  */
 export function isAgendamentoLiberado(serverTime: Date): boolean {
   const liberacao = parseISO('2026-05-06T18:00:00');
-  return isAfter(serverTime, liberacao) || isToday(serverTime) && serverTime.getHours() >= 18;
+  return isAfter(serverTime, liberacao);
 }
 
 /**

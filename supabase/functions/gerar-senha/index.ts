@@ -12,91 +12,75 @@ serve(async (req) => {
   }
 
   try {
+    // ===== VALIDAÇÃO JWT (Correção Crítica #8) =====
+    const authHeader = req.headers.get('Authorization')
+    if (!authHeader) {
+      throw new Error('Token de autorização não fornecido.')
+    }
+
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     )
 
+    // Verificar se o token JWT é válido
+    const token = authHeader.replace('Bearer ', '')
+    const { data: { user }, error: authError } = await supabaseClient.auth.getUser(token)
+
+    if (authError || !user) {
+      throw new Error('Não autorizado. Token inválido ou expirado.')
+    }
+
     const params = await req.json()
-    const { dia_atendimento, nome, data_nascimento, pcd, prioritario, servidor_cadastro_id } = params
+    const { dia_atendimento, nome, data_nascimento, pcd, servidor_cadastro_id } = params
 
-    // 1. Verificar se o dia está configurado e não bloqueado
-    const { data: config, error: configError } = await supabaseClient
-      .from('configuracao_dias')
-      .select('limite_senhas, bloqueado, periodo')
-      .eq('data', dia_atendimento)
-      .single()
-
-    if (configError || !config) {
-      throw new Error(`Dia ${dia_atendimento} não configurado.`)
+    // Validação básica dos campos obrigatórios
+    if (!dia_atendimento || !nome || !data_nascimento) {
+      throw new Error('Campos obrigatórios: dia_atendimento, nome, data_nascimento')
     }
 
-    if (config.bloqueado) {
-      throw new Error(`O dia ${dia_atendimento} está bloqueado para novos atendimentos.`)
-    }
-
-    // 2. Verificar o limite de senhas
-    const { count, error: countError } = await supabaseClient
-      .from('eleitores_fila')
-      .select('*', { count: 'exact', head: true })
-      .eq('dia_atendimento', dia_atendimento)
-      .neq('status', 'cancelado')
-
-    if (countError) throw countError
-    const totalSenhas = count || 0
-
-    if (totalSenhas >= config.limite_senhas) {
-      throw new Error(`Limite de senhas (${config.limite_senhas}) atingido para hoje.`)
-    }
-
-    // 3. Determinar a fila (no Período 1, a fila inicial é sempre prioritaria ou normal)
-    const fila = prioritario ? 'prioritaria' : 'normal'
-
-    // 4. Inserir eleitor e gerar senha (sequencial para o dia)
-    const proximaSenha = totalSenhas + 1
-
-    const { data: eleitor, error: insertError } = await supabaseClient
-      .from('eleitores_fila')
-      .insert({
-        nome,
-        data_nascimento,
-        pcd,
-        prioritario,
-        dia_atendimento,
-        senha: proximaSenha,
-        tipo: config.periodo === 2 ? 'agendado' : 'presencial',
-        fila,
-        servidor_cadastro_id,
-        status: 'aguardando'
+    // ===== USAR RPC ATÔMICA (Correção Crítica #1 e #4) =====
+    // A RPC gerar_senha_atomica:
+    //   - Resolve race condition com FOR UPDATE
+    //   - Calcula prioridade no servidor (ignora campo do cliente)
+    const { data: result, error: rpcError } = await supabaseClient
+      .rpc('gerar_senha_atomica', {
+        p_dia_atendimento: dia_atendimento,
+        p_nome: nome,
+        p_data_nascimento: data_nascimento,
+        p_pcd: pcd || false,
+        p_prioritario: false, // Ignorado — RPC calcula baseado em data_nascimento
+        p_servidor_cadastro_id: servidor_cadastro_id || user.id,
+        p_tipo: 'presencial',
       })
-      .select()
+
+    if (rpcError) {
+      throw new Error(rpcError.message)
+    }
+
+    // Buscar eleitor completo para retornar
+    const { data: eleitor } = await supabaseClient
+      .from('eleitores_fila')
+      .select('*')
+      .eq('id', result.eleitor_id)
       .single()
-
-    if (insertError) throw insertError
-
-    // 5. Registrar log de criação
-    await supabaseClient.from('log_acoes').insert({
-      servidor_id: servidor_cadastro_id,
-      acao: 'cadastro_fila',
-      eleitor_id: eleitor.id,
-      detalhes: { senha: proximaSenha, fila }
-    })
 
     return new Response(JSON.stringify({
       success: true,
-      eleitor,
-      senha: proximaSenha,
-      fila,
-      posicao: totalSenhas + 1 // Posição aproximada na fila total do dia
+      eleitor: eleitor || { id: result.eleitor_id },
+      senha: result.senha,
+      fila: result.fila,
+      posicao: result.posicao,
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 200,
     })
 
   } catch (error) {
+    const status = error.message?.includes('Não autorizado') ? 401 : 400
     return new Response(JSON.stringify({ error: error.message }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      status: 400,
+      status,
     })
   }
 })

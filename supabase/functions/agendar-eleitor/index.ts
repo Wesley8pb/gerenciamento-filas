@@ -12,7 +12,7 @@ serve(async (req) => {
   }
 
   try {
-    // ===== VALIDAÇÃO JWT (Correção Crítica #8) =====
+    // Validação JWT
     const authHeader = req.headers.get('Authorization')
     if (!authHeader) {
       throw new Error('Token de autorização não fornecido.')
@@ -23,7 +23,6 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     )
 
-    // Verificar se o token JWT é válido
     const token = authHeader.replace('Bearer ', '')
     const { data: { user }, error: authError } = await supabaseClient.auth.getUser(token)
 
@@ -32,29 +31,40 @@ serve(async (req) => {
     }
 
     const params = await req.json()
-    const { dia_atendimento, servidor_id } = params
+    const { dia_atendimento, nome, data_nascimento, pcd, servidor_cadastro_id } = params
 
-    if (!dia_atendimento) {
-      throw new Error('Campo obrigatório: dia_atendimento')
+    if (!dia_atendimento || !nome || !data_nascimento) {
+      throw new Error('Campos obrigatórios: dia_atendimento, nome, data_nascimento')
     }
 
-    // ===== USAR RPC ATÔMICA (Correção Crítica #5) =====
-    // A RPC chamar_proximo_atomico:
-    //   - Resolve race condition com FOR UPDATE
-    //   - Usa FOR UPDATE SKIP LOCKED para evitar conflito entre atendentes
+    // Usar RPC atômica para gerar senha (mesmo fluxo do presencial, mas tipo=agendado)
     const { data: result, error: rpcError } = await supabaseClient
-      .rpc('chamar_proximo_atomico', {
+      .rpc('gerar_senha_atomica', {
         p_dia_atendimento: dia_atendimento,
-        p_servidor_id: servidor_id || user.id,
+        p_nome: nome,
+        p_data_nascimento: data_nascimento,
+        p_pcd: pcd || false,
+        p_prioritario: false, // Ignorado — RPC calcula baseado em data_nascimento
+        p_servidor_cadastro_id: servidor_cadastro_id || user.id,
+        p_tipo: 'agendado',
       })
 
     if (rpcError) {
       throw new Error(rpcError.message)
     }
 
+    // Buscar eleitor completo
+    const { data: eleitor } = await supabaseClient
+      .from('eleitores_fila')
+      .select('*')
+      .eq('id', result.eleitor_id)
+      .single()
+
     return new Response(JSON.stringify({
       success: true,
-      eleitor: result.eleitor,
+      eleitor: eleitor || { id: result.eleitor_id },
+      senha: result.senha,
+      fila: result.fila,
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 200,
