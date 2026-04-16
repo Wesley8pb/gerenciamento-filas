@@ -1,6 +1,20 @@
 # CHANGELOG
 
+## [1.1.3] - 2026-04-16
+
+### 🔧 Correção de Tipagem — `src/test/setup.ts`
+
+- **`global` substituído por `globalThis`**: `global` é exclusivo do Node.js e não existe no `lib` do `tsconfig.app.json` (`ES2023 + DOM`). `globalThis` é o padrão ECMAScript cross-environment que funciona em qualquer runtime (browser e Node.js).
+- **Typecheck validado**: `npm run typecheck` passou com zero erros após a correção.
+
+### Arquivos Modificados
+
+- `src/test/setup.ts` — L20 e L27: `global.IntersectionObserver` e `global.ResizeObserver` → `globalThis.*`
+
+---
+
 ## [1.1.2] - 2026-04-16
+
 
 ### 🔧 Correções de Tipagem nos Testes (CI/CD — Bloqueio de Build)
 
