@@ -1,6 +1,25 @@
 # CHANGELOG
 
+## [1.1.2] - 2026-04-16
+
+### 🔧 Correções de Tipagem nos Testes (CI/CD — Bloqueio de Build)
+
+- **Padrão factory function centralizado**: Criadas as funções `makeProfile()` e `makeConfiguracaoDia()` em `src/test/mocks.ts` com valores padrão completos e suporte a overrides parciais. Garante que futuras mudanças no tipo sejam corrigidas em um único lugar.
+- **`auth.test.ts` corrigido**: Todos os objetos `Profile` refatorados para usar `makeProfile({ ...override })`, eliminando 5 erros de campos obrigatórios ausentes (`primeiro_acesso`, `created_at`).
+- **`configuracao.test.ts` corrigido**: Todos os objetos `ConfiguracaoDia` refatorados para usar `makeConfiguracaoDia({ ...override })`, eliminando 4 erros de campos obrigatórios ausentes (`periodo`, `dia_especial`, `observacao`, `ciclo_atual`, `created_at`).
+- **Cast TypeScript inseguro corrigido**: Substituído `supabase as { from: ... }` por `supabase as unknown as { from: ... }` — padrão correto para double cast sem sobreposição de tipos.
+- **Typecheck validado**: `npm run typecheck` executado com sucesso (zero erros) após as correções.
+
+### Arquivos Modificados
+
+- `src/test/mocks.ts` — Adicionadas `makeProfile()` e `makeConfiguracaoDia()` (factories de fixtures)
+- `src/store/auth.test.ts` — Refatorado para usar `makeProfile()`
+- `src/services/configuracao.test.ts` — Refatorado para usar `makeConfiguracaoDia()` + cast seguro
+
+---
+
 ## [1.1.1] - 2026-04-16
+
 
 ### 🟡 Correções de Qualidade de Código (Lint CI/CD)
 

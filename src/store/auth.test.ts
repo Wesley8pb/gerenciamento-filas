@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { useAuthStore, hasPerfil, isAdmin, precisaTrocarSenha } from './auth'
-import type { Profile } from '../types'
+import { makeProfile } from '../test/mocks'
 
 describe('auth store', () => {
   describe('hasPerfil', () => {
@@ -9,96 +9,47 @@ describe('auth store', () => {
     })
 
     it('deve retornar true quando usuário tem o perfil', () => {
-      const user: Profile = {
-        id: '1',
-        email: 'test@example.com',
-        nome: 'Test',
-        perfil: 'admin',
-        ativo: true,
-      }
+      const user = makeProfile({ perfil: 'admin' })
       expect(hasPerfil(user, ['admin'])).toBe(true)
     })
 
     it('deve retornar false quando usuário não tem o perfil', () => {
-      const user: Profile = {
-        id: '1',
-        email: 'test@example.com',
-        nome: 'Test',
-        perfil: 'atendente',
-        ativo: true,
-      }
+      const user = makeProfile({ perfil: 'atendente' })
       expect(hasPerfil(user, ['admin'])).toBe(false)
     })
 
     it('deve retornar true quando um dos perfis coincide', () => {
-      const user: Profile = {
-        id: '1',
-        email: 'test@example.com',
-        nome: 'Test',
-        perfil: 'atendente',
-        ativo: true,
-      }
+      const user = makeProfile({ perfil: 'atendente' })
       expect(hasPerfil(user, ['admin', 'atendente'])).toBe(true)
     })
   })
 
   describe('isAdmin', () => {
     it('deve retornar true para admin', () => {
-      const user: Profile = {
-        id: '1',
-        email: 'admin@example.com',
-        nome: 'Admin',
-        perfil: 'admin',
-        ativo: true,
-      }
+      const user = makeProfile({ perfil: 'admin', email: 'admin@example.com' })
       expect(isAdmin(user)).toBe(true)
     })
 
     it('deve retornar false para atendente', () => {
-      const user: Profile = {
-        id: '1',
-        email: 'atendente@example.com',
-        nome: 'Atendente',
-        perfil: 'atendente',
-        ativo: true,
-      }
+      const user = makeProfile({ perfil: 'atendente', email: 'atendente@example.com' })
       expect(isAdmin(user)).toBe(false)
     })
   })
 
   describe('precisaTrocarSenha', () => {
     it('deve retornar true quando primeiro_acesso é true', () => {
-      const user: Profile = {
-        id: '1',
-        email: 'test@example.com',
-        nome: 'Test',
-        perfil: 'atendente',
-        ativo: true,
-        primeiro_acesso: true,
-      }
+      const user = makeProfile({ primeiro_acesso: true })
       expect(precisaTrocarSenha(user)).toBe(true)
     })
 
     it('deve retornar false quando primeiro_acesso é false', () => {
-      const user: Profile = {
-        id: '1',
-        email: 'test@example.com',
-        nome: 'Test',
-        perfil: 'atendente',
-        ativo: true,
-        primeiro_acesso: false,
-      }
+      const user = makeProfile({ primeiro_acesso: false })
       expect(precisaTrocarSenha(user)).toBe(false)
     })
 
-    it('deve retornar false quando primeiro_acesso é undefined', () => {
-      const user: Profile = {
-        id: '1',
-        email: 'test@example.com',
-        nome: 'Test',
-        perfil: 'atendente',
-        ativo: true,
-      }
+    it('deve retornar false quando primeiro_acesso não está definido (default)', () => {
+      // makeProfile já seta primeiro_acesso: false por padrão — comportamento esperado
+      const user = makeProfile()
       expect(precisaTrocarSenha(user)).toBe(false)
     })
   })
@@ -112,13 +63,7 @@ describe('auth store', () => {
     })
 
     it('deve atualizar usuário corretamente', () => {
-      const user: Profile = {
-        id: '1',
-        email: 'test@example.com',
-        nome: 'Test',
-        perfil: 'admin',
-        ativo: true,
-      }
+      const user = makeProfile({ perfil: 'admin' })
 
       useAuthStore.getState().setUser(user)
 
@@ -129,13 +74,7 @@ describe('auth store', () => {
     })
 
     it('deve limpar estado corretamente', () => {
-      const user: Profile = {
-        id: '1',
-        email: 'test@example.com',
-        nome: 'Test',
-        perfil: 'admin',
-        ativo: true,
-      }
+      const user = makeProfile({ perfil: 'admin' })
 
       useAuthStore.getState().setUser(user)
       useAuthStore.getState().clear()

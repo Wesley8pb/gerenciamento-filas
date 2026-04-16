@@ -7,9 +7,9 @@ import {
   fetchConfiguracaoSistema,
   atualizarConfiguracaoSistema,
 } from './configuracao'
-import type { ConfiguracaoDia } from '../types'
+import { makeConfiguracaoDia } from '../test/mocks'
 
-// Mock do supabase - usando factory function
+// Mock do supabase — usando factory function para isolamento total
 vi.mock('../lib/supabase', () => ({
   supabase: {
     from: vi.fn(),
@@ -18,7 +18,9 @@ vi.mock('../lib/supabase', () => ({
 
 // Importar o mock após a definição
 import { supabase } from '../lib/supabase'
-const mockSupabase = supabase as { from: ReturnType<typeof vi.fn> }
+
+// Cast seguro via unknown: evita erro de sobreposição insuficiente de tipos
+const mockSupabase = supabase as unknown as { from: ReturnType<typeof vi.fn> }
 
 describe('configuracao service', () => {
   beforeEach(() => {
@@ -27,9 +29,9 @@ describe('configuracao service', () => {
 
   describe('fetchConfiguracaoDias', () => {
     it('deve retornar lista de configurações', async () => {
-      const mockData: ConfiguracaoDia[] = [
-        { id: 1, data: '2026-04-15', limite_senhas: 100, bloqueado: false },
-        { id: 2, data: '2026-04-16', limite_senhas: 100, bloqueado: false },
+      const mockData = [
+        makeConfiguracaoDia({ id: 1, data: '2026-04-15' }),
+        makeConfiguracaoDia({ id: 2, data: '2026-04-16' }),
       ]
 
       mockSupabase.from.mockReturnValue({
@@ -56,12 +58,7 @@ describe('configuracao service', () => {
 
   describe('fetchConfiguracaoDia', () => {
     it('deve retornar configuração de um dia específico', async () => {
-      const mockData: ConfiguracaoDia = {
-        id: 1,
-        data: '2026-04-15',
-        limite_senhas: 100,
-        bloqueado: false,
-      }
+      const mockData = makeConfiguracaoDia({ id: 1, data: '2026-04-15' })
 
       mockSupabase.from.mockReturnValue({
         select: vi.fn().mockReturnValue({
@@ -94,12 +91,7 @@ describe('configuracao service', () => {
 
   describe('atualizarConfiguracaoDia', () => {
     it('deve atualizar configuração com sucesso', async () => {
-      const mockData: ConfiguracaoDia = {
-        id: 1,
-        data: '2026-04-15',
-        limite_senhas: 150,
-        bloqueado: false,
-      }
+      const mockData = makeConfiguracaoDia({ id: 1, data: '2026-04-15', limite_senhas: 150 })
 
       mockSupabase.from.mockReturnValue({
         update: vi.fn().mockReturnValue({
