@@ -1,5 +1,29 @@
 # CHANGELOG
 
+## [1.1.1] - 2026-04-16
+
+### 🟡 Correções de Qualidade de Código (Lint CI/CD)
+
+- **`no-explicit-any` corrigido (30 ocorrências)**: Todos os blocos `catch (err: any)` substituídos por `catch (err: unknown)` com acesso seguro via `err instanceof Error`. Variáveis `valorA`/`valorB` em `RelatoriosPage.tsx` tipadas como `string | number`.
+- **`no-unused-vars` corrigido**: Removida variável `SUPABASE_URL` não utilizada em `src/services/fila.ts`.
+- **`react-hooks/exhaustive-deps` corrigido**: Função `loadLogs` em `LogsPage.tsx` convertida para `useCallback` com dependências corretas, adicionada como dependência do `useEffect`.
+- **Tipagem sem `any` em acessos dinâmicos**: Substituídos todos `(obj as any).prop` por intersections tipadas (`EleitorFila & { servidor_atendimento?: { nome?: string } }`) em `RelatoriosPage.tsx` e `exportacao.ts`. Acesso ao `lastAutoTable` do jsPDF tipado corretamente.
+
+### Arquivos Modificados
+
+- `src/pages/AgendamentoPage.tsx` — 2 correções `no-explicit-any`
+- `src/pages/AtendimentoPage.tsx` — 4 correções `no-explicit-any`
+- `src/pages/LoginPage.tsx` — 1 correção `no-explicit-any`
+- `src/pages/RecepcaoPage.tsx` — 1 correção `no-explicit-any`
+- `src/pages/RelatoriosPage.tsx` — 3 correções `no-explicit-any`
+- `src/pages/TrocarSenhaPage.tsx` — 1 correção `no-explicit-any`
+- `src/pages/admin/ConfiguracaoDiasPage.tsx` — 5 correções `no-explicit-any`
+- `src/pages/admin/GerenciarFilaPage.tsx` — 4 correções `no-explicit-any`
+- `src/pages/admin/LogsPage.tsx` — 2 correções `no-explicit-any` + 1 correção `exhaustive-deps`
+- `src/pages/admin/UsuariosPage.tsx` — 3 correções `no-explicit-any`
+- `src/services/fila.ts` — Removida `SUPABASE_URL` não utilizada
+- `src/utils/exportacao.ts` — 3 correções `no-explicit-any`
+
 ## [1.1.0] - 2026-03-31
 
 ### 🔴 Correções Críticas (Segurança e Integridade)

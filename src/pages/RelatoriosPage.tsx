@@ -90,8 +90,8 @@ export function RelatoriosPage() {
 
   // Ordenar lista nominal
   const eleitoresOrdenados = [...eleitores].sort((a, b) => {
-    let valorA: any;
-    let valorB: any;
+    let valorA: string | number;
+    let valorB: string | number;
 
     if (ordemCampo === 'senha') {
       valorA = a.senha;
@@ -429,7 +429,7 @@ export function RelatoriosPage() {
                                 : '-'}
                             </td>
                             <td className="px-4 py-2 text-sm text-gray-600">
-                              {(eleitor as any).servidor_atendimento?.nome || '-'}
+                              {(eleitor as EleitorFila & { servidor_atendimento?: { nome?: string } }).servidor_atendimento?.nome || '-'}
                             </td>
                           </tr>
                         ))

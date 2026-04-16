@@ -31,8 +31,8 @@ export function TrocarSenhaPage() {
     try {
       await updatePassword(novaSenha);
       navigate('/');
-    } catch (err: any) {
-      setError(err.message || 'Erro ao atualizar senha. Tente novamente.');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Erro ao atualizar senha. Tente novamente.');
     } finally {
       setIsLoading(false);
     }

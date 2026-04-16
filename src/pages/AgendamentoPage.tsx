@@ -180,8 +180,8 @@ export function AgendamentoPage() {
       setSelectedDia(null);
       carregarDias();
 
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Erro ao agendar');
     } finally {
       setLoading(false);
     }
@@ -198,8 +198,8 @@ export function AgendamentoPage() {
       setEleitorRemarcacao(null);
       carregarDias();
       carregarAusentes();
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Erro ao remarcar');
     } finally {
       setLoadingRemarcacao(false);
     }
