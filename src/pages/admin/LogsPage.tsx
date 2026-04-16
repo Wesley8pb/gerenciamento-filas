@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Layout } from '../../components/Layout';
 import { fetchLogs } from '../../services/fila';
 import { fetchUsuarios } from '../../services/usuarios';
@@ -24,7 +24,7 @@ export function LogsPage() {
       try {
         const data = await fetchUsuarios();
         setServidores(data);
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error('Erro ao carregar servidores:', err);
       }
     };
@@ -32,7 +32,7 @@ export function LogsPage() {
   }, []);
 
   // Carregar logs
-  const loadLogs = async () => {
+  const loadLogs = useCallback(async () => {
     try {
       setLoading(true);
       const data = await fetchLogs({
@@ -42,16 +42,16 @@ export function LogsPage() {
         acao: filtroAcao || undefined,
       });
       setLogs(data);
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Erro ao carregar logs');
     } finally {
       setLoading(false);
     }
-  };
+  }, [filtroServidor, filtroAcao, filtroDataInicio, filtroDataFim]);
 
   useEffect(() => {
     loadLogs();
-  }, [filtroServidor, filtroAcao, filtroDataInicio, filtroDataFim]);
+  }, [loadLogs]);
 
   // Formatar detalhes
   const formatDetalhes = (log: LogAcao) => {

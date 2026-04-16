@@ -1,7 +1,7 @@
 import { supabase } from '../lib/supabase';
 import type { EleitorFila, LogAcao, Profile } from '../types';
 
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+
 
 interface CadastrarEleitorParams {
   dia_atendimento: string;
@@ -147,22 +147,20 @@ export async function fetchLogs(filtros?: {
  * Cadastra eleitor na fila via Edge Function
  */
 export async function cadastrarEleitor(params: CadastrarEleitorParams): Promise<CadastrarEleitorResult> {
-  const response = await fetch(`${SUPABASE_URL}/functions/v1/gerar-senha`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
-    },
-    body: JSON.stringify(params),
-  });
-
-  const result = await response.json();
-
-  if (!response.ok) {
-    throw new Error(result.error || 'Erro ao cadastrar eleitor');
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session?.access_token) {
+    throw new Error('Usuário não autenticado');
   }
 
-  return result;
+  const { data, error } = await supabase.functions.invoke('gerar-senha', {
+    body: params,
+  });
+
+  if (error) {
+    throw new Error(error.message || 'Erro ao cadastrar eleitor');
+  }
+
+  return data;
 }
 
 /**

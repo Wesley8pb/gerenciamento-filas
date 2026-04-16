@@ -50,8 +50,8 @@ export function ConfiguracaoDiasPage() {
         setAgendamentoData(format(dt, 'yyyy-MM-dd'));
         setAgendamentoHora(format(dt, 'HH:mm'));
       }
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Erro ao carregar dados');
     } finally {
       setLoading(false);
     }
@@ -81,8 +81,8 @@ export function ConfiguracaoDiasPage() {
       setEditingDia(null);
       setSuccess('Configuração salva!');
       setTimeout(() => setSuccess(null), 3000);
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Erro ao salvar');
     } finally {
       setSaving(null);
     }
@@ -102,8 +102,8 @@ export function ConfiguracaoDiasPage() {
       setSuccess('Limite aplicado a todos os dias ativos!');
       setTimeout(() => setSuccess(null), 3000);
       setLimiteTodos('');
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Erro ao aplicar limite');
     } finally {
       setSaving(null);
     }
@@ -117,8 +117,8 @@ export function ConfiguracaoDiasPage() {
       await atualizarConfiguracaoSistema('agendamento_abertura', dataHora);
       setSuccess('Data de abertura salva!');
       setTimeout(() => setSuccess(null), 3000);
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Erro ao salvar data de abertura');
     } finally {
       setSaving(null);
     }
@@ -164,8 +164,8 @@ export function ConfiguracaoDiasPage() {
 
       setSuccess('Nova data adicionada com sucesso!');
       setTimeout(() => setSuccess(null), 3000);
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Erro ao criar dia');
     } finally {
       setSaving(null);
     }

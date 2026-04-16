@@ -31,8 +31,8 @@ export function UsuariosPage() {
       setLoading(true);
       const data = await fetchUsuarios();
       setUsuarios(data);
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Erro ao carregar usuários');
     } finally {
       setLoading(false);
     }
@@ -103,7 +103,7 @@ export function UsuariosPage() {
 
       await loadUsuarios();
       closeModal();
-    } catch (err: any) {
+    } catch (err: unknown) {
       setFormError(getFriendlyError(err));
     } finally {
       setFormLoading(false);
@@ -123,7 +123,7 @@ export function UsuariosPage() {
       await toggleUsuarioAtivo(confirmUser.id, !confirmUser.ativo);
       notify.success(confirmUser.ativo ? 'Servidor desativado' : 'Servidor reativado');
       await loadUsuarios();
-    } catch (err: any) {
+    } catch (err: unknown) {
       notify.error(getFriendlyError(err));
     } finally {
       setShowConfirm(false);

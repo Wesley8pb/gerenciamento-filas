@@ -7,11 +7,17 @@ const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
  * Chama o próximo eleitor da fila
  */
 export async function chamarProximo(diaAtendimento: string, servidorId: string): Promise<EleitorFila> {
+  // Obter token JWT do usuário logado
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session?.access_token) {
+    throw new Error('Usuário não autenticado');
+  }
+
   const response = await fetch(`${SUPABASE_URL}/functions/v1/chamar-proximo`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+      'Authorization': `Bearer ${session.access_token}`,
     },
     body: JSON.stringify({
       dia_atendimento: diaAtendimento,
@@ -64,6 +70,8 @@ export async function finalizarAtendimento(
 
 /**
  * Registra retorno de ausente
+ * Usa increment atômico via SQL para evitar race condition em retorno_count
+ * (quando chamado em rápida sucessão por múltiplas sessões).
  */
 export async function registrarRetorno(
   eleitorId: string,
@@ -71,38 +79,22 @@ export async function registrarRetorno(
 ): Promise<EleitorFila> {
   const now = new Date().toISOString();
 
-  // Buscar retorno_count atual
-  const { data: eleitorAtual } = await supabase
-    .from('eleitores_fila')
-    .select('retorno_count')
-    .eq('id', eleitorId)
-    .single();
-
-  const novoRetornoCount = (eleitorAtual?.retorno_count || 0) + 1;
-
+  // UPDATE atômico: sem SELECT prévio. retorno_count é incrementado via RPC
+  // registrar_retorno_atomico (migration). Enquanto a RPC não é obrigatória,
+  // delegamos via expressão de SQL crua usando a propriedade do supabase-js
+  // de aceitar um objeto sem o campo e depois fazer uma segunda operação não
+  // resolveria a corrida. Por isso o padrão correto é via RPC.
   const { data, error } = await supabase
-    .from('eleitores_fila')
-    .update({
-      status: 'aguardando',
-      fila: 'retorno',
-      horario_retorno: now,
-      retorno_count: novoRetornoCount,
+    .rpc('registrar_retorno_atomico', {
+      p_eleitor_id: eleitorId,
+      p_servidor_id: servidorId,
+      p_horario_retorno: now,
     })
-    .eq('id', eleitorId)
-    .select()
     .single();
 
   if (error) throw error;
 
-  // Registrar log
-  await supabase.from('log_acoes').insert({
-    servidor_id: servidorId,
-    acao: 'registro_retorno',
-    eleitor_id: eleitorId,
-    detalhes: { horario_retorno: now },
-  });
-
-  return data;
+  return data as EleitorFila;
 }
 
 /**

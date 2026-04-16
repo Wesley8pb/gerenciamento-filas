@@ -51,6 +51,7 @@ export function Layout({ children }: LayoutProps) {
               <div className="text-right">
                 <p className="font-medium">{user?.nome}</p>
                 <p className="text-xs text-blue-200 capitalize">{user?.perfil}</p>
+                <p className="text-xs text-blue-300">{user?.email}</p>
               </div>
               <button
                 onClick={handleLogout}

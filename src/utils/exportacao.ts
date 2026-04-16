@@ -45,7 +45,7 @@ export function exportarResumoDiarioPDF(resumo: ResumoDiario, filtros: FiltrosRe
   });
 
   // Breakdown por categoria
-  const breakdownY = (doc as any).lastAutoTable.finalY + 10;
+  const breakdownY = (doc as jsPDF & { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 10;
   autoTable(doc, {
     startY: breakdownY,
     head: [['Categoria', 'Atendidos', 'Ausentes']],
@@ -99,7 +99,7 @@ export function exportarListaNominalPDF(eleitores: EleitorFila[], filtros: Filtr
     e.fila === 'prioritaria' ? 'Prioritário' : 'Normal',
     e.status.charAt(0).toUpperCase() + e.status.slice(1),
     e.horario_finalizacao ? format(parseISO(e.horario_finalizacao), 'HH:mm') : '-',
-    (e as any).servidor_atendimento?.nome || '-',
+    (e as EleitorFila & { servidor_atendimento?: { nome?: string } }).servidor_atendimento?.nome || '-',
   ]);
 
   autoTable(doc, {
@@ -212,7 +212,7 @@ export function exportarRemarcacoesPDF(remarcacoes: RemarcacaoHistorico[]): void
     r.fila === 'prioritaria' ? 'Prioritário' : 'Normal',
     format(parseISO(r.dia_original), 'dd/MM/yyyy'),
     format(parseISO(r.dia_remarcado), 'dd/MM/yyyy'),
-    r.remarcao_count.toString(),
+    r.remarcacao_count.toString(),
   ]);
 
   autoTable(doc, {
@@ -247,7 +247,7 @@ export function exportarListaNominalXLSX(eleitores: EleitorFila[]): void {
     'Categoria': e.fila === 'prioritaria' ? 'Prioritário' : 'Normal',
     'Status': e.status.charAt(0).toUpperCase() + e.status.slice(1),
     'Horário Atendimento': e.horario_finalizacao ? format(parseISO(e.horario_finalizacao), 'HH:mm') : '-',
-    'Servidor': (e as any).servidor_atendimento?.nome || '-',
+    'Servidor': (e as EleitorFila & { servidor_atendimento?: { nome?: string } }).servidor_atendimento?.nome || '-',
   }));
 
   const ws = XLSX.utils.json_to_sheet(rows);
@@ -289,7 +289,7 @@ export function exportarRemarcacoesXLSX(remarcacoes: RemarcacaoHistorico[]): voi
     'Categoria': r.fila === 'prioritaria' ? 'Prioritário' : 'Normal',
     'Dia Original': format(parseISO(r.dia_original), 'dd/MM/yyyy'),
     'Dia Remarcado': format(parseISO(r.dia_remarcado), 'dd/MM/yyyy'),
-    'Total Remarcações': r.remarcao_count,
+    'Total Remarcações': r.remarcacao_count,
   }));
 
   const ws = XLSX.utils.json_to_sheet(rows);

@@ -174,9 +174,9 @@ export function RecepcaoPage() {
       setIdade(null);
       setIsPrioritario(false);
 
-    } catch (err: any) {
+    } catch (err: unknown) {
       notify.error(getFriendlyError(err));
-      setError(err.message || 'Erro ao cadastrar eleitor');
+      setError(err instanceof Error ? err.message : 'Erro ao cadastrar eleitor');
     } finally {
       setLoading(false);
     }
