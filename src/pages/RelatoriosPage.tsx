@@ -642,7 +642,7 @@ export function RelatoriosPage() {
                             </td>
                             <td className="px-4 py-2">
                               <span className="px-2 py-0.5 bg-red-100 text-red-700 rounded-full text-xs">
-                                {r.remarcao_count}
+                                {r.remarcacao_count}
                               </span>
                             </td>
                           </tr>

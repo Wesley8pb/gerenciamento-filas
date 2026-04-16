@@ -29,10 +29,17 @@ interface AgendarEleitorParams {
  * Verifica se o agendamento está liberado
  */
 export async function checkAgendamentoLiberado(): Promise<AgendamentoStatus> {
+  // Obter token JWT do usuário logado
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session?.access_token) {
+    throw new Error('Usuário não autenticado');
+  }
+
   const response = await fetch(`${SUPABASE_URL}/functions/v1/check-agendamento-liberado`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
+      'Authorization': `Bearer ${session.access_token}`,
     },
   });
 
@@ -49,11 +56,17 @@ export async function agendarEleitor(params: AgendarEleitorParams): Promise<{
   senha: number;
   fila: 'prioritaria' | 'normal';
 }> {
+  // Obter token JWT do usuário logado
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session?.access_token) {
+    throw new Error('Usuário não autenticado');
+  }
+
   const response = await fetch(`${SUPABASE_URL}/functions/v1/agendar-eleitor`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+      'Authorization': `Bearer ${session.access_token}`,
     },
     body: JSON.stringify(params),
   });
@@ -132,80 +145,24 @@ export async function buscarAgendamentosEleitor(
 
 /**
  * Remarcar agendamento
+ * Usa RPC atômica remarcar_atomico (FOR UPDATE na configuração + inserção da senha)
+ * para evitar senhas duplicadas em cenários de remarcação concorrente.
  */
 export async function remarcarAgendamento(
   eleitorId: string,
   novoDia: string,
   servidorId: string
 ): Promise<EleitorFila> {
-  // Buscar agendamento atual
-  const { data: atual, error: errorBusca } = await supabase
-    .from('eleitores_fila')
-    .select('*')
-    .eq('id', eleitorId)
-    .single();
-
-  if (errorBusca) throw errorBusca;
-
-  // Verificar limite do novo dia
-  const { data: configDia } = await supabase
-    .from('configuracao_dias')
-    .select('limite_senhas')
-    .eq('data', novoDia)
-    .single();
-
-  if (configDia && configDia.limite_senhas > 0) {
-    const { count } = await supabase
-      .from('eleitores_fila')
-      .select('*', { count: 'exact', head: true })
-      .eq('dia_atendimento', novoDia)
-      .neq('status', 'cancelado');
-
-    if (count && count >= configDia.limite_senhas) {
-      throw new Error('Limite de vagas atingido para este dia');
-    }
-  }
-
-  // Gerar nova senha
-  const { data: ultimaSenha } = await supabase
-    .from('eleitores_fila')
-    .select('senha')
-    .eq('dia_atendimento', novoDia)
-    .order('senha', { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
-  const novaSenha = (ultimaSenha?.senha || 0) + 1;
-
-  // Atualizar
   const { data, error } = await supabase
-    .from('eleitores_fila')
-    .update({
-      dia_atendimento: novoDia,
-      senha: novaSenha,
-      remarcado_de: atual.dia_atendimento,
-      remarcao_count: (atual.remarcao_count || 0) + 1,
-      status: 'aguardando',
+    .rpc('remarcar_atomico', {
+      p_eleitor_id: eleitorId,
+      p_novo_dia: novoDia,
+      p_servidor_id: servidorId,
     })
-    .eq('id', eleitorId)
-    .select()
     .single();
 
   if (error) throw error;
-
-  // Registrar log
-  await supabase.from('log_acoes').insert({
-    servidor_id: servidorId,
-    acao: 'remarcacao_agendamento',
-    eleitor_id: eleitorId,
-    detalhes: {
-      dia_anterior: atual.dia_atendimento,
-      novo_dia: novoDia,
-      nova_senha: novaSenha
-    }
-  });
-
-  return data;
+  return data as EleitorFila;
 }
 
 /**

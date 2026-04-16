@@ -1,8 +1,6 @@
 import { supabase } from '../lib/supabase';
 import type { Profile } from '../types';
 
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
-
 interface CreateUserData {
   nome: string;
   email: string;
@@ -28,48 +26,26 @@ export async function fetchUsuarios(): Promise<Profile[]> {
   return data;
 }
 
-import { createClient } from '@supabase/supabase-js';
-
-const SERVICE_KEY = import.meta.env.VITE_SUPABASE_SERVICE_ROLE_KEY;
-
-const adminClient = SERVICE_KEY ? createClient(SUPABASE_URL, SERVICE_KEY, {
-  auth: { autoRefreshToken: false, persistSession: false }
-}) : null;
-
 /**
- * Cria um novo usuário (atendente) usando a Admin API em vez das Edge Functions
+ * Cria um novo usuário (atendente) via Edge Function segura
+ * A Service Role Key é usada apenas no servidor (Edge Function)
  */
 export async function criarUsuario(dados: CreateUserData): Promise<CreateUserResult> {
-  if (!adminClient) throw new Error('Service Role Key não configurada no .env');
+  const { data: { session } } = await supabase.auth.getSession();
 
-  const { data, error } = await adminClient.auth.admin.createUser({
-    email: dados.email,
-    password: dados.senha,
-    email_confirm: true,
-    user_metadata: { nome: dados.nome }
+  if (!session) {
+    throw new Error('Sessão não encontrada. Faça login novamente.');
+  }
+
+  const { data, error } = await supabase.functions.invoke('admin-criar-usuario', {
+    body: dados,
   });
 
   if (error) {
     throw new Error(error.message || 'Erro ao criar usuário');
   }
 
-  // Se o trigger do Supabase não criar o profile automaticamente (o que ocorreu), precisamos inseri-lo manualmente!
-  if (data.user) {
-    const { error: profileError } = await adminClient.from('profiles').insert({
-      id: data.user.id,
-      email: dados.email,
-      nome: dados.nome,
-      perfil: 'atendente',
-      ativo: true,
-      primeiro_acesso: true
-    });
-    
-    if (profileError) {
-      console.error('Falha ao inserir profile, mas auth user foi criado:', profileError);
-    }
-  }
-
-  return { id: data.user!.id, nome: dados.nome, email: dados.email };
+  return data.usuario;
 }
 
 /**
@@ -103,21 +79,24 @@ export async function toggleUsuarioAtivo(id: string, ativo: boolean): Promise<Pr
 }
 
 /**
- * Reseta senha do usuário usando a Admin API
+ * Reseta senha do usuário via Edge Function segura
+ * A Service Role Key é usada apenas no servidor (Edge Function)
  */
 export async function resetarSenha(userId: string, novaSenha: string): Promise<void> {
-  if (!adminClient) throw new Error('Service Role Key não configurada no .env');
+  const { data: { session } } = await supabase.auth.getSession();
 
-  const { error } = await adminClient.auth.admin.updateUserById(userId, {
-    password: novaSenha
+  if (!session) {
+    throw new Error('Sessão não encontrada. Faça login novamente.');
+  }
+
+  const { error } = await supabase.functions.invoke('admin-resetar-senha', {
+    body: { userId, novaSenha },
+    headers: {
+      Authorization: `Bearer ${session.access_token}`,
+    },
   });
 
   if (error) {
     throw new Error(error.message || 'Erro ao resetar senha');
   }
-
-  // Obrigar o usuário a trocar a senha novamente
-  await adminClient.from('profiles').update({
-    primeiro_acesso: true
-  }).eq('id', userId);
 }

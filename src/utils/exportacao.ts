@@ -212,7 +212,7 @@ export function exportarRemarcacoesPDF(remarcacoes: RemarcacaoHistorico[]): void
     r.fila === 'prioritaria' ? 'Prioritário' : 'Normal',
     format(parseISO(r.dia_original), 'dd/MM/yyyy'),
     format(parseISO(r.dia_remarcado), 'dd/MM/yyyy'),
-    r.remarcao_count.toString(),
+    r.remarcacao_count.toString(),
   ]);
 
   autoTable(doc, {
@@ -289,7 +289,7 @@ export function exportarRemarcacoesXLSX(remarcacoes: RemarcacaoHistorico[]): voi
     'Categoria': r.fila === 'prioritaria' ? 'Prioritário' : 'Normal',
     'Dia Original': format(parseISO(r.dia_original), 'dd/MM/yyyy'),
     'Dia Remarcado': format(parseISO(r.dia_remarcado), 'dd/MM/yyyy'),
-    'Total Remarcações': r.remarcao_count,
+    'Total Remarcações': r.remarcacao_count,
   }));
 
   const ws = XLSX.utils.json_to_sheet(rows);

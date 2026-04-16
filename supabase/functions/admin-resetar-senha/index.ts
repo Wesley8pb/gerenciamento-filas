@@ -12,7 +12,7 @@ serve(async (req) => {
   }
 
   try {
-    // ===== VALIDAÇÃO JWT (Correção Crítica #8) =====
+    // Validação JWT — verificar se é admin
     const authHeader = req.headers.get('Authorization')
     if (!authHeader) {
       throw new Error('Token de autorização não fornecido.')
@@ -23,7 +23,6 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     )
 
-    // Verificar se o token JWT é válido
     const token = authHeader.replace('Bearer ', '')
     const { data: { user }, error: authError } = await supabaseClient.auth.getUser(token)
 
@@ -31,37 +30,53 @@ serve(async (req) => {
       throw new Error('Não autorizado. Token inválido ou expirado.')
     }
 
+    // Verificar se é admin
+    const { data: profile } = await supabaseClient
+      .from('profiles')
+      .select('perfil')
+      .eq('id', user.id)
+      .single()
+
+    if (!profile || profile.perfil !== 'admin') {
+      throw new Error('Apenas administradores podem resetar senhas.')
+    }
+
     const params = await req.json()
-    const { dia_atendimento, servidor_id } = params
+    const { userId, novaSenha } = params
 
-    if (!dia_atendimento) {
-      throw new Error('Campo obrigatório: dia_atendimento')
+    if (!userId || !novaSenha) {
+      throw new Error('Campos obrigatórios: userId, novaSenha')
     }
 
-    // ===== USAR RPC ATÔMICA (Correção Crítica #5) =====
-    // A RPC chamar_proximo_atomico:
-    //   - Resolve race condition com FOR UPDATE
-    //   - Usa FOR UPDATE SKIP LOCKED para evitar conflito entre atendentes
-    const { data: result, error: rpcError } = await supabaseClient
-      .rpc('chamar_proximo_atomico', {
-        p_dia_atendimento: dia_atendimento,
-        p_servidor_id: servidor_id || user.id,
-      })
-
-    if (rpcError) {
-      throw new Error(rpcError.message)
+    if (novaSenha.length < 6) {
+      throw new Error('A senha deve ter pelo menos 6 caracteres')
     }
+
+    // Resetar senha usando Service Role Key (segura no servidor)
+    const { error: updateError } = await supabaseClient.auth.admin.updateUserById(userId, {
+      password: novaSenha,
+    })
+
+    if (updateError) {
+      throw new Error(updateError.message || 'Erro ao resetar senha')
+    }
+
+    // Marcar como primeiro acesso para forçar troca
+    await supabaseClient.from('profiles').update({
+      primeiro_acesso: true,
+    }).eq('id', userId)
 
     return new Response(JSON.stringify({
       success: true,
-      eleitor: result.eleitor,
+      message: 'Senha resetada com sucesso',
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 200,
     })
 
   } catch (error) {
-    const status = error.message?.includes('Não autorizado') ? 401 : 400
+    const status = error.message?.includes('Não autorizado') || error.message?.includes('Apenas administradores')
+      ? 403 : 400
     return new Response(JSON.stringify({ error: error.message }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status,
