@@ -28,6 +28,9 @@ export async function fetchFilaDia(data: string): Promise<EleitorFila[]> {
     .from('eleitores_fila')
     .select('*')
     .eq('dia_atendimento', data)
+    // Respeitar ordem manual quando definida (NULLs ficam por último)
+    // Fallback: order de chegada (senha)
+    .order('ordem_manual', { ascending: true, nullsFirst: false })
     .order('senha', { ascending: true });
 
   if (error) throw error;

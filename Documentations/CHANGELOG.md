@@ -1,5 +1,72 @@
 # CHANGELOG
 
+## [1.2.1] - 2026-04-17
+
+### 🔄 Refatoração — Regra da Fila de Retorno
+
+**Mudança de comportamento solicitada:** A fila de retorno agora só é acionada quando as filas prioritária e normal estiverem completamente vazias.
+
+**Lógica anterior (ciclo fixo 2P:1N:1R) — REMOVIDA:**
+- O sistema alternava em ciclos: Prioritária → Prioritária → Normal → Retorno
+- O retorno sempre tinha uma "vaga garantida" a cada 4 chamadas
+
+**Nova lógica (cascata de prioridade):**
+1. Chama da fila **Prioritária** (se houver alguém)
+2. Se prioritária vazia → chama da fila **Normal**
+3. Se prioritária **e** normal vazias → chama da fila de **Retorno**
+4. Se todas vazias → "Não há ninguém aguardando"
+
+A ordenação dentro de cada fila continua respeitando `ordem_manual` (quando definida pelo admin) e `senha` como critério de desempate.
+
+### Arquivos Modificados / Criados
+
+- `supabase/migrations/20260417170000_refactor_retorno_somente_quando_filas_vazias.sql` — Nova RPC aplicada
+
+---
+
+## [1.2.0] - 2026-04-17
+
+### 🐛 Correção — Gerenciamento de Fila: alteração de ordem não surtia efeito
+
+**Causa raiz (dois pontos independentes):**
+
+1. **Display incorreto** — `fetchFilaDia` ordenava exclusivamente por `senha ASC`. O campo `ordem_manual` era salvo no banco, mas a lista do admin continuava aparecendo na ordem de chegada original.  
+   **Correção (`src/services/fila.ts`):** Query atualizada para `.order('ordem_manual', { ascending: true, nullsFirst: false }).order('senha', { ascending: true })`. Quem tem `ordem_manual` definida aparece primeiro; os demais ficam ordenados por `senha` (chegada).
+
+2. **Chamada ignorava ordem** — A RPC `chamar_proximo_atomico` usava `ORDER BY senha ASC`, de modo que mesmo que o admin reordenasse, o sistema continuava chamando pelo número da senha, não pela ordem definida.  
+   **Correção (`chamar_proximo_atomico`):** `ORDER BY COALESCE(ordem_manual, 999999), senha ASC`. Eleitores com `ordem_manual` definida têm prioridade de chamada; os demais mantêm a ordem de chegada.
+
+### Arquivos Modificados / Criados
+
+- `src/services/fila.ts` — `fetchFilaDia`: ordenação por `ordem_manual` (nulls last) + `senha`
+- `supabase/migrations/20260417165000_fix_chamar_proximo_ordem_manual.sql` — Correção da RPC
+
+---
+
+## [1.1.9] - 2026-04-17
+
+### 🔴 Correção Crítica — `chamar-proximo` HTTP 400 + RPCs ausentes no banco
+
+**Bug 1 — `chamar_proximo_atomico` (HTTP 400 ao chamar próximo):**
+- **Causa**: Variável `v_fila_busca` declarada como `TEXT` sendo comparada com a coluna `fila` do tipo `fila_enum`. PostgreSQL lança erro `42883: operator does not exist: fila_enum = text` — não existe operador `=` entre tipos incompatíveis.
+- **Correção**: Tipo da variável alterado de `TEXT` para `fila_enum`. As atribuições de string (`'prioritaria'`, `'normal'`, `'retorno'`) são implicitamente convertidas pelo PostgreSQL em PL/pgSQL.
+
+**Bug 2 — `registrar_retorno_atomico` inexistente (chamar fila de retorno quebrava silenciosamente):**
+- **Causa**: A migração `20260416120000_fix_race_conditions_v2.sql` nunca foi aplicada ao banco de produção. A função estava definida no arquivo local mas nunca existiu no Supabase.
+- **Correção**: Função criada com incremento atômico de `retorno_count` e movimentação para fila de retorno.
+
+**Bug 3 — `remarcar_atomico` inexistente (mesma causa do Bug 2):**
+- **Causa**: Mesma migração não aplicada.
+- **Correção adicional**: Nome da coluna corrigido de `remarcacao_count` (como estava no arquivo de migração) para `remarcao_count` (nome real da coluna no banco).
+
+**Validação:** Todos os 3 cenários testados e confirmados via SQL direto antes e após as correções.
+
+### Arquivos Modificados / Criados
+
+- `supabase/migrations/20260417160000_fix_all_rpc_enum_cast_issues.sql` — Migração abrangente com as 3 correções
+
+---
+
 ## [1.1.8] - 2026-04-17
 
 ### 🔴 Correção Crítica — Edge Function `gerar-senha` HTTP 400 em todo cadastro
