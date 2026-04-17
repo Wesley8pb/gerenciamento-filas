@@ -3,14 +3,12 @@ import { useAuthStore } from '../store/auth';
 import type { Profile } from '../types';
 
 // ================================================================
-// SINGLETON — executado UMA VEZ quando o módulo é primeiro importado
-// Independente de quantos componentes chamam useAuth()
-// Resolve o problema de múltiplos listeners concorrentes
+// SINGLETON — executado UMA VEZ quando o módulo é importado
 // ================================================================
 
 /**
- * Mutex simples: garante que apenas uma chamada ao banco
- * aconteça por vez, mesmo com múltiplos eventos auth simultâneos.
+ * Mutex: garante que apenas UMA chamada ao banco ocorra por vez,
+ * mesmo quando múltiplos eventos auth disparam simultaneamente.
  */
 let isFetchingProfile = false;
 
@@ -26,6 +24,7 @@ async function fetchProfileSingleton(userId: string, retries = 2): Promise<Profi
         }
       }, 100);
     });
+    // Reutiliza o perfil já carregado, sem nova requisição
     const stored = useAuthStore.getState().user;
     if (stored) return stored;
   }
@@ -78,8 +77,8 @@ async function fetchProfileSingleton(userId: string, retries = 2): Promise<Profi
 }
 
 /**
- * Tenta recriar o perfil de um usuário auth sem perfil cadastrado.
- * Útil para usuários "órfãos" onde auth existe mas profile não.
+ * Tenta recriar o perfil de um usuário auth "órfão"
+ * (existe no auth mas não tem registro na tabela profiles).
  */
 async function tryRecreateProfile(
   userId: string,
@@ -109,8 +108,11 @@ async function tryRecreateProfile(
 
 /**
  * Inicializa o sistema de autenticação UMA ÚNICA VEZ.
- * Registra o onAuthStateChange globalmente e faz a leitura
- * inicial da sessão. Idempotente — chamadas subsequentes são no-op.
+ *
+ * IMPORTANTE: o Supabase já dispara INITIAL_SESSION automaticamente
+ * no onAuthStateChange com a sessão existente (ou null se não há sessão).
+ * Por isso, NÃO precisamos de um initAuth() separado — isso causaria
+ * race condition (duas chamadas paralelas ao fetchProfile).
  */
 let authSystemInitialized = false;
 
@@ -118,55 +120,20 @@ function initAuthSystem() {
   if (authSystemInitialized) return;
   authSystemInitialized = true;
 
-  // ---- Listener de mudanças de auth (registrado uma única vez) ----
+  // Timeout de segurança: evita loading infinito se onAuthStateChange falhar
+  const globalTimeout = setTimeout(() => {
+    console.warn('[useAuth] Global timeout - forçando fim do loading');
+    if (useAuthStore.getState().isLoading) {
+      useAuthStore.getState().setUser(null);
+    }
+  }, 8000);
+
+  // Listener único — cobre tanto a sessão inicial (INITIAL_SESSION)
+  // quanto mudanças subsequentes (SIGNED_IN, SIGNED_OUT, TOKEN_REFRESHED)
   supabase.auth.onAuthStateChange(async (event, session) => {
     console.log('[useAuth] Auth state changed:', event, session?.user?.id || 'none');
 
-    if ((event === 'SIGNED_IN' || event === 'INITIAL_SESSION') && session?.user) {
-      const profile = await fetchProfileSingleton(session.user.id);
-
-      if (profile) {
-        useAuthStore.getState().setUser(profile);
-      } else {
-        console.warn('[useAuth] Profile not found but session exists.');
-
-        if (event === 'INITIAL_SESSION') {
-          const userMetadata = session.user.user_metadata;
-          const newProfile = await tryRecreateProfile(
-            session.user.id,
-            session.user.email ?? '',
-            userMetadata
-          );
-          if (newProfile) {
-            useAuthStore.getState().setUser(newProfile);
-            return;
-          }
-        }
-
-        // Se não conseguiu recuperar, marcar como não autenticado sem signOut
-        useAuthStore.getState().setLoading(false);
-      }
-    } else if (event === 'SIGNED_OUT') {
-      useAuthStore.getState().clear();
-    }
-  });
-
-  // ---- Inicialização da sessão existente ----
-  const initAuth = async () => {
-    console.log('[useAuth] Initializing auth...');
-    useAuthStore.getState().setLoading(true);
-
-    try {
-      const sessionTimeout = new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error('getSession timeout')), 3000)
-      );
-
-      const { data: { session } } = await Promise.race([
-        supabase.auth.getSession(),
-        sessionTimeout,
-      ]) as Awaited<ReturnType<typeof supabase.auth.getSession>>;
-
-      console.log('[useAuth] Initial session:', session?.user?.id || 'none');
+    if (event === 'INITIAL_SESSION' || event === 'SIGNED_IN') {
 
       if (session?.user) {
         const profile = await fetchProfileSingleton(session.user.id);
@@ -174,55 +141,52 @@ function initAuthSystem() {
         if (profile) {
           useAuthStore.getState().setUser(profile);
         } else {
-          console.warn('[useAuth] Profile not found during init. Attempting to recreate from metadata.');
-          const userMetadata = session.user.user_metadata;
-          const newProfile = await tryRecreateProfile(
-            session.user.id,
-            session.user.email ?? '',
-            userMetadata
-          );
+          console.warn('[useAuth] Profile not found.');
 
-          if (newProfile) {
-            useAuthStore.getState().setUser(newProfile);
-            return;
+          // Tenta recriar perfil para usuário órfão (somente no carregamento inicial)
+          if (event === 'INITIAL_SESSION') {
+            const userMetadata = session.user.user_metadata;
+            const newProfile = await tryRecreateProfile(
+              session.user.id,
+              session.user.email ?? '',
+              userMetadata
+            );
+            if (newProfile) {
+              useAuthStore.getState().setUser(newProfile);
+              clearTimeout(globalTimeout);
+              return;
+            }
           }
 
-          console.warn('[useAuth] Could not recover profile. User needs to login again.');
-          useAuthStore.getState().setUser(null);
+          // Sem perfil: para o loading sem deslogar (pode ser instabilidade)
+          useAuthStore.getState().setLoading(false);
         }
       } else {
+        // INITIAL_SESSION sem sessão = não há usuário logado
         useAuthStore.getState().setUser(null);
       }
-    } catch (err) {
-      console.error('[useAuth] Init error (timeout ou falha):', err);
-      useAuthStore.getState().setUser(null);
+
+      clearTimeout(globalTimeout);
+
+    } else if (event === 'SIGNED_OUT') {
+      clearTimeout(globalTimeout);
+      useAuthStore.getState().clear();
     }
-  };
-
-  // Timeout global de segurança: evita loading infinito
-  const globalTimeout = setTimeout(() => {
-    console.warn('[useAuth] Global timeout - forçando fim do loading');
-    useAuthStore.getState().setUser(null);
-  }, 8000);
-
-  initAuth().finally(() => clearTimeout(globalTimeout));
+  });
 }
 
-// Executa a inicialização imediatamente ao importar o módulo
+// Executa imediatamente ao importar o módulo
 initAuthSystem();
 
 // ================================================================
-// HOOK — apenas lê a store Zustand e expõe funções de ação
-// Não registra nenhum listener, não tem useEffect de auth
+// HOOK — apenas lê a store e expõe funções de ação
+// Sem listeners, sem useEffect de auth, sem duplicação
 // ================================================================
 
 export function useAuth() {
   const { user, isLoading, isAuthenticated } = useAuthStore();
 
-  /**
-   * Realiza login com email e senha.
-   * O onAuthStateChange (singleton) cuida de atualizar a store.
-   */
+  /** Login com email e senha. O onAuthStateChange atualiza a store. */
   const login = async (email: string, password: string) => {
     console.log('[useAuth] Login attempt for:', email);
     try {
@@ -241,17 +205,14 @@ export function useAuth() {
     }
   };
 
-  /** Realiza logout e limpa a store. */
+  /** Logout e limpeza da store. */
   const logout = async () => {
     const { error } = await supabase.auth.signOut();
     if (error) throw error;
     useAuthStore.getState().clear();
   };
 
-  /**
-   * Atualiza a senha do usuário logado e
-   * marca primeiro_acesso como false no perfil.
-   */
+  /** Atualiza senha e marca primeiro_acesso como false. */
   const updatePassword = async (newPassword: string) => {
     const { error } = await supabase.auth.updateUser({ password: newPassword });
     if (error) throw error;
