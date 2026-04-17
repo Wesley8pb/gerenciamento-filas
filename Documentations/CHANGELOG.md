@@ -1,5 +1,18 @@
 # CHANGELOG
 
+## [1.1.4] - 2026-04-17
+
+### 🧹 Limpeza e Unificação de Branches
+
+- **Unificação na `main`**: Todo o código de desenvolvimento foi consolidado na branch `main`, que já estava atualizada com todos os merges anteriores.
+- **Worktree removido**: O worktree local `.worktrees/netlify-preparo` foi excluído pois o conteúdo já havia sido integrado à `main`.
+- **Branches locais removidas**: `feat/improvements-and-email-header` e `feat/netlify-preparo` deletadas localmente.
+- **Branches remotas removidas**: `feat/improvements-and-email-header` e `feat/netlify-preparo` deletadas do GitHub.
+- **Referências obsoletas purgadas**: `origin/claude/add-mcp-gitignore-elZXz` e `origin/fix-eslint-errors` removidas via `git remote prune origin`.
+- **Estado final**: apenas `main` existe local e remotamente, sincronizada com `origin/main`.
+
+---
+
 ## [1.1.3] - 2026-04-16
 
 ### 🔧 Correção de Tipagem — `src/test/setup.ts`
