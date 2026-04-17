@@ -1,5 +1,62 @@
 # CHANGELOG
 
+## [1.1.8] - 2026-04-17
+
+### 🔴 Correção Crítica — Edge Function `gerar-senha` HTTP 400 em todo cadastro
+
+- **Causa raiz**: A função RPC `gerar_senha_atomica` no PostgreSQL tentava inserir texto literal (`'agendado'`, `'normal'`, `'aguardando'`) diretamente nas colunas `tipo`, `fila` e `status` da tabela `eleitores_fila`. Essas colunas são do tipo `enum` personalizado (`tipo_enum`, `fila_enum`, `status_enum`). O PostgreSQL **não converte TEXT para enum implicitamente** — lança o erro `42804: column is of type tipo_enum but expression is of type text`.
+- **Sintoma**: 400 Bad Request em toda chamada `POST /functions/v1/gerar-senha`, impossibilitando qualquer cadastro de eleitor.
+- **Correção**: Adicionados casts explícitos `::tipo_enum`, `::fila_enum` e `::status_enum` no INSERT da RPC.
+- **Correção adicional**: A verificação de limite de senhas foi ajustada para só aplicar quando `limite_senhas > 0`, evitando bloqueio em dias com limite zerado.
+- **Validação**: RPC testada diretamente via SQL antes e após a correção — retornou `{ "success": true, "senha": 1, ... }` com sucesso.
+
+### Arquivos Modificados / Criados
+
+- `supabase/migrations/20260417150000_fix_gerar_senha_atomica_tipo_cast.sql` — Correção aplicada ao banco de dados
+
+---
+
+## [1.1.7] - 2026-04-17
+
+### 🏗️ Refatoração — `useAuth.ts`: padrão Singleton para listeners de autenticação
+
+- **Problema arquitetural identificado**: o hook `useAuth` era chamado por 4-5 componentes simultaneamente (`App`, `Layout`, `ProtectedRoute`, `RoleGuard`, `AgendamentoPage`). Cada chamada registrava um listener `onAuthStateChange` independente. Quando o Supabase disparava `INITIAL_SESSION`, todos os listeners chamavam `fetchProfile` ao mesmo tempo, causando 8-10 requisições paralelas e erros de timeout.
+- **Solução**: `onAuthStateChange` e `initAuth` movidos para **nível de módulo** (singleton). O código roda uma única vez quando o módulo é importado pela primeira vez, independentemente de quantos componentes usam o hook.
+- **O hook agora é puro**: apenas lê a store Zustand e expõe as funções `login`, `logout` e `updatePassword`. Zero `useEffect` de auth, zero listeners duplicados.
+- **Compatibilidade mantida**: a API pública do hook (`user`, `isLoading`, `isAuthenticated`, `login`, `logout`, `updatePassword`, `primeiroAcesso`) permanece idêntica — nenhum componente consumidor precisou ser alterado.
+- **Typecheck e build**: zero erros TypeScript, build gerado com sucesso (`Exit code: 0`).
+
+### Arquivos Modificados
+
+- `src/hooks/useAuth.ts` — Refatoração completa para padrão singleton
+
+---
+
+## [1.1.6] - 2026-04-17
+
+### 🔴 Correção Crítica — `verify_jwt: true` em todas as Edge Functions com auth interna
+
+Todas as funções com autenticação interna própria (via `supabaseClient.auth.getUser(token)`) estavam com `verify_jwt: true`, criando dupla validação com risco de bloqueio 401 pelo gateway do Supabase. A `check-agendamento-liberado` era pública mas estava bloqueando usuários não autenticados.
+
+| Função | Antes | Depois |
+|---|---|---|
+| `admin-criar-usuario` | v2 `true` | v3 `false` |
+| `gerar-senha` | v4 `true` | v5 `false` |
+| `chamar-proximo` | v4 `true` | v5 `false` |
+| `agendar-eleitor` | v3 `true` | v4 `false` |
+| `check-agendamento-liberado` | v3 `true` | v4 `false` |
+
+---
+
+## [1.1.5] - 2026-04-17
+
+### 🔴 Correção Crítica — Edge Function `admin-resetar-senha` (Erro 401 em produção)
+
+- **Causa raiz**: função deployada com `verify_jwt: true`, fazendo o gateway do Supabase rejeitar com 401 antes do código executar.
+- **Correção**: redeploy com `verify_jwt: false` (v3). Segurança mantida pela validação interna de token + perfil admin.
+
+---
+
 ## [1.1.4] - 2026-04-17
 
 ### 🧹 Limpeza e Unificação de Branches
