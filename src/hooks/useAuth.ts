@@ -6,52 +6,75 @@ import type { Profile } from '../types';
 // Flag global no nível do módulo — compartilhada entre TODOS os componentes
 let authInitialized = false;
 
+// Mutex simples: evita fetchProfile paralelos quando múltiplos eventos auth disparam juntos
+let isFetchingProfile = false;
+
 export function useAuth() {
   const { user, isLoading, isAuthenticated, setUser, setLoading, clear } = useAuthStore();
 
-  // Fetch user profile with timeout and retry
+  // Fetch user profile with timeout, mutex e retry
   const fetchProfile = useCallback(async (userId: string, retries = 2): Promise<Profile | null> => {
-    for (let attempt = 0; attempt <= retries; attempt++) {
-      try {
-        if (attempt > 0) {
-          console.log(`[useAuth] Retrying fetchProfile, attempt ${attempt + 1}/${retries + 1}`);
-          await new Promise(resolve => setTimeout(resolve, 500 * attempt)); // Espera crescente entre tentativas
-        }
-
-        console.log('[useAuth] Fetching profile for user:', userId);
-
-        const timeout = new Promise<never>((_, reject) =>
-          setTimeout(() => reject(new Error('fetchProfile timeout')), 5000)
-        );
-
-        const query = supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', userId)
-          .single();
-
-        const { data, error } = await Promise.race([query, timeout]) as Awaited<typeof query>;
-
-        if (error) {
-          if (error.code === 'PGRST116') {
-            // Perfil não encontrado - não fazer retry, retornar null
-            console.error('[useAuth] Profile not found for user:', userId);
-            return null;
+    // Se já há uma busca em andamento, aguardar ela terminar antes de continuar
+    if (isFetchingProfile) {
+      console.log('[useAuth] fetchProfile já em andamento, aguardando...');
+      await new Promise<void>(resolve => {
+        const check = setInterval(() => {
+          if (!isFetchingProfile) {
+            clearInterval(check);
+            resolve();
           }
-          console.error('[useAuth] Error fetching profile (attempt ' + (attempt + 1) + '):', error);
-          if (attempt === retries) return null;
-          continue; // Tentar novamente
-        }
-
-        console.log('[useAuth] Profile fetched successfully:', data);
-        return data as Profile;
-      } catch (err) {
-        console.error('[useAuth] Exception fetching profile (attempt ' + (attempt + 1) + '):', err);
-        if (attempt === retries) return null;
-        // Continua para próxima tentativa
-      }
+        }, 100);
+      });
+      // Retornar o perfil já carregado na store (se disponível)
+      const stored = useAuthStore.getState().user;
+      if (stored) return stored;
     }
-    return null;
+
+    isFetchingProfile = true;
+
+    try {
+      for (let attempt = 0; attempt <= retries; attempt++) {
+        try {
+          if (attempt > 0) {
+            console.log(`[useAuth] Retrying fetchProfile, attempt ${attempt + 1}/${retries + 1}`);
+            await new Promise(resolve => setTimeout(resolve, 500 * attempt));
+          }
+
+          console.log('[useAuth] Fetching profile for user:', userId);
+
+          const timeout = new Promise<never>((_, reject) =>
+            setTimeout(() => reject(new Error('fetchProfile timeout')), 8000)
+          );
+
+          const query = supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', userId)
+            .single();
+
+          const { data, error } = await Promise.race([query, timeout]) as Awaited<typeof query>;
+
+          if (error) {
+            if (error.code === 'PGRST116') {
+              console.error('[useAuth] Profile not found for user:', userId);
+              return null;
+            }
+            console.error('[useAuth] Error fetching profile (attempt ' + (attempt + 1) + '):', error);
+            if (attempt === retries) return null;
+            continue;
+          }
+
+          console.log('[useAuth] Profile fetched successfully:', data);
+          return data as Profile;
+        } catch (err) {
+          console.error('[useAuth] Exception fetching profile (attempt ' + (attempt + 1) + '):', err);
+          if (attempt === retries) return null;
+        }
+      }
+      return null;
+    } finally {
+      isFetchingProfile = false;
+    }
   }, []);
 
   // Initialize auth state once (globally)
