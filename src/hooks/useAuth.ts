@@ -205,11 +205,19 @@ export function useAuth() {
     }
   };
 
-  /** Logout e limpeza da store. */
-  const logout = async () => {
-    const { error } = await supabase.auth.signOut();
-    if (error) throw error;
+  /**
+   * Logout otimista: limpa a store imediatamente para navegação instantânea.
+   * O signOut() é disparado em segundo plano para invalidar o token no servidor,
+   * sem bloquear a UI enquanto aguarda resposta de rede.
+   */
+  const logout = () => {
+    // 1. Limpar state local imediatamente → UI reage na hora
     useAuthStore.getState().clear();
+
+    // 2. Invalidar sessão no servidor em background (sem await)
+    supabase.auth.signOut().catch(err =>
+      console.warn('[useAuth] Erro ao encerrar sessão no servidor:', err)
+    );
   };
 
   /** Atualiza senha e marca primeiro_acesso como false. */

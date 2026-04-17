@@ -1,5 +1,22 @@
 # CHANGELOG
 
+## [1.2.2] - 2026-04-17
+
+### 🐛 Correção — Botão "Sair" com demora no logout
+
+- **Causa**: `logout()` chamava `await supabase.auth.signOut()` antes de limpar a store. Como `signOut()` é uma chamada de rede (pode levar 1-3 s para o servidor responder), a interface ficava travada aguardando a resposta antes de navegar para `/login`.
+- **Correção**: Padrão **logout otimista** aplicado em `useAuth.ts`:
+  1. Store é limpa **imediatamente** → UI navega para `/login` na hora
+  2. `signOut()` é disparado **em segundo plano** (sem `await`) para invalidar o token no servidor
+- `handleLogout` em `Layout.tsx` também simplificado (removido `await` desnecessário).
+
+### Arquivos Modificados
+
+- `src/hooks/useAuth.ts` — `logout`: de `async/await signOut` para otimista (clear → background signOut)
+- `src/components/Layout.tsx` — `handleLogout`: removido `async/await`
+
+---
+
 ## [1.2.1] - 2026-04-17
 
 ### 🔄 Refatoração — Regra da Fila de Retorno
