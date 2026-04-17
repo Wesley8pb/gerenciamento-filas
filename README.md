@@ -47,12 +47,13 @@ npm install
 ```
 
 ### 3. Configurar as Variáveis de Ambiente
-Crie um arquivo chamado `.env` na raiz do projeto (como o `.env.example`) com as três variáveis do Supabase, incluindo a Service Role Key para viabilizar as permissões automáticas do painel de Administrador local.
+Crie um arquivo chamado `.env` na raiz do projeto usando o `.env.example` como base. No frontend, apenas estas variáveis públicas do Supabase são obrigatórias:
 ```env
 VITE_SUPABASE_URL=sua-url-aqui
 VITE_SUPABASE_ANON_KEY=sua-anon-key-aqui
-VITE_SUPABASE_SERVICE_ROLE_KEY=sua-service-role-key-aqui
 ```
+
+A `SERVICE_ROLE_KEY` não deve ser exposta no frontend nem publicada como `VITE_`. Se alguma rotina server-side precisar dela, configure-a apenas no ambiente privado correspondente.
 
 ### 4. Iniciar o servidor de desenvolvimento
 ```bash
@@ -85,7 +86,7 @@ Crie o primeiro usuário administrador manualmente no painel **Authentication > 
 ---
 
 ## 📦 Deploy
-O sistema foi configurado estruturalmente para ser hospedado nas arquiteturas focadas em frontend, via infraestrutura SPA (*Single Page Application*). Consulte a página [Guia de Deploy na Netlify](./docs/DEPLOY_NETLIFY.md) (ou `DEPLOY_NETLIFY.md`) para consultar os passos originais de publicação e como configurar os testes de CORS nativos do Supabase em produção.
+O sistema está preparado para deploy do frontend na Netlify como SPA (*Single Page Application*). Consulte o guia atualizado em [docs/DEPLOY_NETLIFY.md](./docs/DEPLOY_NETLIFY.md) para os passos reais de publicação, variáveis de ambiente obrigatórias e dependências de domínio/CORS com o Supabase.
 
 ---
 
