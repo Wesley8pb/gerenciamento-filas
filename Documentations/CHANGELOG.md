@@ -1,5 +1,21 @@
 # CHANGELOG
 
+## [1.2.3] - 2026-04-20
+
+### 🚀 Melhoria — Solução de Proxy Reverso para Rede Institucional (TRE/PB)
+
+- **Motivo**: A rede do TRE/PB bloqueia domínios `*.supabase.co`, causando erros de `Failed to fetch`.
+- **Solução**: Implementação de Proxy Reverso via Netlify. O frontend agora comunica-se com `/supabase-api` do próprio domínio, e o Netlify repassa as chamadas ao Supabase.
+- **Segurança**: Mantida a mesma lógica de tokens (`anon key`), apenas a rota é intermediada pelo servidor do Netlify.
+- **Documentação**: Criado guia de reversão em `Documentations/SOLUCAO_PROXY_TRE.md`.
+
+### Arquivos Modificados
+- `netlify.toml` — Adicionada regra de redirecionamento `redirects` para `/supabase-api/*`.
+- `src/lib/supabase.ts` — Alterada `supabaseUrl` para usar caminho relativo em produção.
+- `Documentations/SOLUCAO_PROXY_TRE.md` — Criado (novo documento).
+
+---
+
 ## [1.2.2] - 2026-04-17
 
 ### 🐛 Correção — Botão "Sair" com demora no logout
