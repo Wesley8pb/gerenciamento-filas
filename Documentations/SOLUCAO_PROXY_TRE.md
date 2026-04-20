@@ -25,6 +25,7 @@ if (!supabaseUrl || !supabaseAnonKey) {
 }
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+export { supabaseUrl as SUPABASE_URL };
 ```
 
 ### 2. Remover o Redirecionamento no `netlify.toml`

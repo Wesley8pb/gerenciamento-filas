@@ -9,10 +9,18 @@
 - **Segurança**: Mantida a mesma lógica de tokens (`anon key`), apenas a rota é intermediada pelo servidor do Netlify.
 - **Documentação**: Criado guia de reversão em `Documentations/SOLUCAO_PROXY_TRE.md`.
 
+### 🐛 Correção Crítica — Erro 'Invalid supabaseUrl' em Produção
+
+- **Causa**: O `supabase-js` exige uma URL absoluta (começando com http/https). O uso de um caminho relativo (`/supabase-api`) para o proxy causava falha na validação do cliente.
+- **Correção**: A URL agora é gerada dinamicamente usando `window.location.origin` em produção, garantindo que seja absoluta e válida.
+- **Consistência**: Centralizada a constante `SUPABASE_URL` no arquivo `lib/supabase.ts` e exportada para os serviços (`agendamento.ts`, `atendimento.ts`), garantindo que as chamadas às Edge Functions também utilizem o proxy corretamente.
+
 ### Arquivos Modificados
+- `src/lib/supabase.ts` — Ajuste para URL absoluta em prod + exportação de `SUPABASE_URL`.
+- `src/services/agendamento.ts` — Importação centralizada de `SUPABASE_URL`.
+- `src/services/atendimento.ts` — Importação centralizada de `SUPABASE_URL`.
 - `netlify.toml` — Adicionada regra de redirecionamento `redirects` para `/supabase-api/*`.
-- `src/lib/supabase.ts` — Alterada `supabaseUrl` para usar caminho relativo em produção.
-- `Documentations/SOLUCAO_PROXY_TRE.md` — Criado (novo documento).
+- `Documentations/SOLUCAO_PROXY_TRE.md` — Criado e atualizado com instruções de reversão.
 
 ---
 
