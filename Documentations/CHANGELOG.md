@@ -17,6 +17,7 @@
 
 ### Arquivos Modificados
 - `src/lib/supabase.ts` — Lógica de normalização de URL com trailing slash.
+- `netlify.toml` — Adicionada regra de proxy explícita para `/supabase-api` (sem splat) para redirecionamento exato previnindo erros 404 de diretórios base.
 - `Documentations/SOLUCAO_PROXY_TRE.md` — Atualizado com a nota sobre a barra de fechamento.
 
 ---

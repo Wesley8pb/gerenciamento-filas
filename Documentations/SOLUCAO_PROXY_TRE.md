@@ -32,7 +32,7 @@ export { supabaseUrl as SUPABASE_URL };
 ```
 
 ### 2. Remover o Redirecionamento no `netlify.toml`
-No arquivo `netlify.toml`, remova o bloco de redirecionamento do `/supabase-api/*`. Ele deve voltar a ser apenas:
+No arquivo `netlify.toml`, remova o bloco de redirecionamento do `/supabase-api` e `/supabase-api/*`. Ele deve voltar a ser apenas:
 
 ```toml
 [build]

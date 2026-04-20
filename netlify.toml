@@ -3,6 +3,12 @@
   publish = "dist"
 
 [[redirects]]
+  from = "/supabase-api"
+  to = "https://ifndiztgonndotoleefo.supabase.co"
+  status = 200
+  force = true
+
+[[redirects]]
   from = "/supabase-api/*"
   to = "https://ifndiztgonndotoleefo.supabase.co/:splat"
   status = 200
