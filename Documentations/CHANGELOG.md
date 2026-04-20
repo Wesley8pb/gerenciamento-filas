@@ -9,18 +9,15 @@
 - **Segurança**: Mantida a mesma lógica de tokens (`anon key`), apenas a rota é intermediada pelo servidor do Netlify.
 - **Documentação**: Criado guia de reversão em `Documentations/SOLUCAO_PROXY_TRE.md`.
 
-### 🐛 Correção Crítica — Erro 'Invalid supabaseUrl' em Produção
+### 🐛 Correção Crítica — Erro 404 e 'Unexpected end of JSON input' no Login
 
-- **Causa**: O `supabase-js` exige uma URL absoluta (começando com http/https). O uso de um caminho relativo (`/supabase-api`) para o proxy causava falha na validação do cliente.
-- **Correção**: A URL agora é gerada dinamicamente usando `window.location.origin` em produção, garantindo que seja absoluta e válida.
-- **Consistência**: Centralizada a constante `SUPABASE_URL` no arquivo `lib/supabase.ts` e exportada para os serviços (`agendamento.ts`, `atendimento.ts`), garantindo que as chamadas às Edge Functions também utilizem o proxy corretamente.
+- **Causa**: O construtor de URLs interno do Supabase (GoTrue/Auth) interpreta caminhos sem barra final como arquivos. Isso fazia com que o segmento `/supabase-api` fosse removido, enviando requisições de autenticação para a raiz do site, resultando em 404 e retorno de HTML (index.html) em vez de JSON.
+- **Correção**: Adicionada barra de fechamento (`trailing slash`) obrigatoriamente na URL de inicialização em produção.
+- **Melhoria**: Refatorada a exportação de `SUPABASE_URL` para garantir que serviços que usam `fetch` manual não dupliquem barras nas rotas.
 
 ### Arquivos Modificados
-- `src/lib/supabase.ts` — Ajuste para URL absoluta em prod + exportação de `SUPABASE_URL`.
-- `src/services/agendamento.ts` — Importação centralizada de `SUPABASE_URL`.
-- `src/services/atendimento.ts` — Importação centralizada de `SUPABASE_URL`.
-- `netlify.toml` — Adicionada regra de redirecionamento `redirects` para `/supabase-api/*`.
-- `Documentations/SOLUCAO_PROXY_TRE.md` — Criado e atualizado com instruções de reversão.
+- `src/lib/supabase.ts` — Lógica de normalização de URL com trailing slash.
+- `Documentations/SOLUCAO_PROXY_TRE.md` — Atualizado com a nota sobre a barra de fechamento.
 
 ---
 

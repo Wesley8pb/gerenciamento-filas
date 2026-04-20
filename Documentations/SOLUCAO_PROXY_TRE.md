@@ -5,6 +5,9 @@ Este documento registra a alteração feita para contornar o bloqueio de rede do
 ## Motivo da Alteração
 A rede institucional do TRE/PB bloqueia requisições diretas para domínios `*.supabase.co`. A solução aplicada cria um **Proxy Reverso** no Netlify, fazendo com que o navegador acesse o próprio domínio do sistema (permitido) e o Netlify repasse a requisição para o Supabase.
 
+> [!IMPORTANT]
+> A URL do proxy em produção deve terminar obrigatoriamente com uma barra (`/`), caso contrário, o Supabase Client removerá o segmento `/supabase-api` ao tentar acessar as rotas de Autenticação e Banco de Dados, causando erros 404.
+
 ---
 
 ## Como Reverter para a Conexão Direta
