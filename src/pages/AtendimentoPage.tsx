@@ -8,7 +8,7 @@ import { notify, getFriendlyError } from '../utils/toast';
 import type { EleitorFila } from '../types';
 import { format, parseISO, differenceInYears } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { Check, X, RotateCcw, Loader2, UserCheck, History, Calendar, Accessibility } from 'lucide-react';
+import { Check, X, RotateCcw, Loader2, UserCheck, History, Calendar, Accessibility, RefreshCw } from 'lucide-react';
 
 export function AtendimentoPage() {
   const { user } = useAuth();
@@ -30,6 +30,7 @@ export function AtendimentoPage() {
 
   // Estado de finalização
   const [finalizando, setFinalizando] = useState(false);
+  const [atualizando, setAtualizando] = useState(false);
 
   // Estado de desfazer
   const [ultimoFinalizado, setUltimoFinalizado] = useState<EleitorFila | null>(null);
@@ -37,7 +38,7 @@ export function AtendimentoPage() {
   const [statusAnterior, setStatusAnterior] = useState<'aguardando' | 'chamado'>('chamado');
 
   // Carregar dados
-  const carregarDados = useCallback(async () => {
+  const carregarDados = useCallback(async (notificarErro = false) => {
     if (!dataAtual) return;
     try {
       const [filaData, historicoData] = await Promise.all([
@@ -55,8 +56,20 @@ export function AtendimentoPage() {
       }
     } catch (err) {
       console.error('Erro ao carregar dados:', err);
+      if (notificarErro) {
+        notify.error(getFriendlyError(err));
+      }
     }
   }, [dataAtual]);
+
+  const handleAtualizarDados = async () => {
+    try {
+      setAtualizando(true);
+      await carregarDados(true);
+    } finally {
+      setAtualizando(false);
+    }
+  };
 
   useEffect(() => {
     carregarDados();
@@ -177,14 +190,26 @@ export function AtendimentoPage() {
 
   return (
     <Layout>
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-800">Atendimento</h1>
-        <p className="text-gray-500">Chamada de eleitores da fila</p>
-        {dataAtual && (
-          <p className="text-sm text-gray-400 mt-1">
-            {format(parseISO(dataAtual), "EEEE, dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
-          </p>
-        )}
+      <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-800">Atendimento</h1>
+          <p className="text-gray-500">Chamada de eleitores da fila</p>
+          {dataAtual && (
+            <p className="text-sm text-gray-400 mt-1">
+              {format(parseISO(dataAtual), "EEEE, dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
+            </p>
+          )}
+        </div>
+
+        <button
+          type="button"
+          onClick={handleAtualizarDados}
+          disabled={atualizando}
+          className="inline-flex w-full items-center justify-center space-x-2 rounded-lg border border-blue-200 bg-white px-4 py-2 text-sm font-medium text-blue-700 shadow-sm transition-colors hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
+        >
+          <RefreshCw size={16} className={atualizando ? 'animate-spin' : ''} />
+          <span>{atualizando ? 'Atualizando...' : 'Atualizar agora'}</span>
+        </button>
       </div>
 
       {/* Botão Desfazer */}
