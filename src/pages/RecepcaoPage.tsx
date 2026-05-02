@@ -5,6 +5,7 @@ import { useDiaAtivo } from '../hooks/useDiaAtivo';
 import { cadastrarEleitor, fetchContagemFila, fetchConfigDia, verificarDuplicidade } from '../services/fila';
 import { supabase } from '../lib/supabase';
 import { notify, getFriendlyError } from '../utils/toast';
+import { aplicarMascaraDataNascimento, converterDataNascimentoParaISO } from '../utils/dataNascimento';
 import { format, differenceInYears, parseISO, isValid } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Calendar, AlertCircle, Loader2, Users, Clock, Accessibility, Check, UserPlus, AlertTriangle } from 'lucide-react';
@@ -88,8 +89,10 @@ export function RecepcaoPage() {
 
   // Calcular idade e prioridade
   useEffect(() => {
-    if (formData.dataNascimento) {
-      const dataNasc = parseISO(formData.dataNascimento);
+    const dataNascimentoISO = converterDataNascimentoParaISO(formData.dataNascimento);
+
+    if (dataNascimentoISO) {
+      const dataNasc = parseISO(dataNascimentoISO);
       if (isValid(dataNasc)) {
         const hoje = new Date();
         const anos = differenceInYears(hoje, dataNasc);
@@ -126,6 +129,17 @@ export function RecepcaoPage() {
       return;
     }
 
+    const dataNascimentoISO = converterDataNascimentoParaISO(formData.dataNascimento);
+    if (!dataNascimentoISO) {
+      setError('Informe a data de nascimento no formato DD/MM/AAAA');
+      return;
+    }
+
+    if (parseISO(dataNascimentoISO) > new Date()) {
+      setError('Data de nascimento não pode ser futura');
+      return;
+    }
+
     if (limiteAtingido) {
       setError('Limite de senhas para hoje atingido');
       return;
@@ -140,7 +154,7 @@ export function RecepcaoPage() {
       const existente = await verificarDuplicidade(
         dataAtual,
         formData.nome.trim(),
-        formData.dataNascimento
+        dataNascimentoISO
       );
 
       if (existente) {
@@ -153,7 +167,7 @@ export function RecepcaoPage() {
       const result = await cadastrarEleitor({
         dia_atendimento: dataAtual,
         nome: formData.nome.trim(),
-        data_nascimento: formData.dataNascimento,
+        data_nascimento: dataNascimentoISO,
         pcd: formData.pcd,
         prioritario: isPrioritario,
         servidor_cadastro_id: user.id,
@@ -326,11 +340,16 @@ export function RecepcaoPage() {
                 Data de Nascimento *
               </label>
               <input
-                type="date"
+                type="text"
                 value={formData.dataNascimento}
-                onChange={(e) => setFormData({ ...formData, dataNascimento: e.target.value })}
+                onChange={(e) => setFormData({
+                  ...formData,
+                  dataNascimento: aplicarMascaraDataNascimento(e.target.value),
+                })}
                 className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
-                max={format(new Date(), 'yyyy-MM-dd')}
+                placeholder="DD/MM/AAAA"
+                inputMode="numeric"
+                maxLength={10}
                 disabled={loading || limiteAtingido}
                 required
               />

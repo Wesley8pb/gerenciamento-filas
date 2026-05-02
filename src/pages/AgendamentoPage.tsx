@@ -3,6 +3,7 @@ import { Layout } from '../components/Layout';
 import { useAuth } from '../hooks/useAuth';
 import { checkAgendamentoLiberado, fetchDiasAgendamento, agendarEleitor, fetchAusentesPeriodo2, remarcarAgendamento } from '../services/agendamento';
 import type { EleitorFila } from '../types';
+import { aplicarMascaraDataNascimento, converterDataNascimentoParaISO } from '../utils/dataNascimento';
 import { format, parseISO, differenceInYears, isValid } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Calendar, Clock, AlertCircle, Loader2, Check, UserPlus, Accessibility } from 'lucide-react';
@@ -123,8 +124,10 @@ export function AgendamentoPage() {
 
   // Calcular idade e prioridade
   useEffect(() => {
-    if (formData.dataNascimento) {
-      const dataNasc = parseISO(formData.dataNascimento);
+    const dataNascimentoISO = converterDataNascimentoParaISO(formData.dataNascimento);
+
+    if (dataNascimentoISO) {
+      const dataNasc = parseISO(dataNascimentoISO);
       if (isValid(dataNasc)) {
         const anos = differenceInYears(new Date(), dataNasc);
         setIdade(anos);
@@ -154,6 +157,17 @@ export function AgendamentoPage() {
       return;
     }
 
+    const dataNascimentoISO = converterDataNascimentoParaISO(formData.dataNascimento);
+    if (!dataNascimentoISO) {
+      setError('Informe a data de nascimento no formato DD/MM/AAAA');
+      return;
+    }
+
+    if (parseISO(dataNascimentoISO) > new Date()) {
+      setError('Data de nascimento não pode ser futura');
+      return;
+    }
+
     setLoading(true);
     setError(null);
 
@@ -161,7 +175,7 @@ export function AgendamentoPage() {
       const result = await agendarEleitor({
         dia_atendimento: selectedDia,
         nome: formData.nome.trim(),
-        data_nascimento: formData.dataNascimento,
+        data_nascimento: dataNascimentoISO,
         pcd: formData.pcd,
         prioritario: isPrioritario,
         servidor_cadastro_id: user.id,
@@ -368,11 +382,16 @@ export function AgendamentoPage() {
                   Data de Nascimento *
                 </label>
                 <input
-                  type="date"
+                  type="text"
                   value={formData.dataNascimento}
-                  onChange={(e) => setFormData({ ...formData, dataNascimento: e.target.value })}
+                  onChange={(e) => setFormData({
+                    ...formData,
+                    dataNascimento: aplicarMascaraDataNascimento(e.target.value),
+                  })}
                   className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
-                  max={format(new Date(), 'yyyy-MM-dd')}
+                  placeholder="DD/MM/AAAA"
+                  inputMode="numeric"
+                  maxLength={10}
                   disabled={loading}
                   required
                 />
