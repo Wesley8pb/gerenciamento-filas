@@ -1,7 +1,6 @@
-import { supabase } from '../lib/supabase';
+import { supabase, SUPABASE_URL } from '../lib/supabase';
 import type { EleitorFila } from '../types';
-
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+import { compararOrdemAtendimento } from '../utils/prioridade';
 
 /**
  * Chama o próximo eleitor da fila
@@ -137,13 +136,14 @@ export async function fetchFilaCompleta(dia: string): Promise<{
     .order('senha', { ascending: true });
 
   if (error) throw error;
+  const ordenados = [...data].sort(compararOrdemAtendimento);
 
   return {
-    prioritarios: data.filter(e => e.fila === 'prioritaria' && e.status === 'aguardando'),
-    normais: data.filter(e => e.fila === 'normal' && e.status === 'aguardando'),
-    retornos: data.filter(e => e.fila === 'retorno' && e.status === 'aguardando'),
-    chamados: data.filter(e => e.status === 'chamado'),
-    ausentes: data.filter(e => e.status === 'ausente'),
+    prioritarios: ordenados.filter(e => e.fila === 'prioritaria' && e.status === 'aguardando'),
+    normais: ordenados.filter(e => e.fila === 'normal' && e.status === 'aguardando'),
+    retornos: ordenados.filter(e => e.fila === 'retorno' && e.status === 'aguardando'),
+    chamados: ordenados.filter(e => e.status === 'chamado'),
+    ausentes: ordenados.filter(e => e.status === 'ausente'),
   };
 }
 

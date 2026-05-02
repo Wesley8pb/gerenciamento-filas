@@ -1,7 +1,5 @@
-import { supabase } from '../lib/supabase';
+import { supabase, SUPABASE_URL } from '../lib/supabase';
 import type { EleitorFila } from '../types';
-
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 
 interface AgendamentoStatus {
   liberado: boolean;

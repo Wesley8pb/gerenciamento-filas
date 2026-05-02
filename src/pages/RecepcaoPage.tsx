@@ -359,7 +359,7 @@ export function RecepcaoPage() {
               <div className="bg-orange-100 border border-orange-300 rounded-lg p-3 flex items-center space-x-2">
                 <span className="px-2 py-1 bg-orange-500 text-white text-xs font-bold rounded">PRIORIDADE</span>
                 <span className="text-sm text-orange-700">
-                  {idade !== null && idade >= 60 ? 'Idoso (60+)' : ''}
+                  {idade !== null && idade >= 80 ? 'Idoso (80+)' : idade !== null && idade >= 60 ? 'Idoso (60+)' : ''}
                   {idade !== null && idade >= 60 && formData.pcd ? ' e ' : ''}
                   {formData.pcd ? 'PCD' : ''}
                 </span>
@@ -416,6 +416,7 @@ export function RecepcaoPage() {
           <h3 className="font-semibold text-blue-800 mb-3">Informações</h3>
           <ul className="text-sm text-blue-700 space-y-2">
             <li>• Idosos (60 anos ou mais) têm direito à fila prioritária</li>
+            <li>• Pessoas com 80 anos ou mais são chamadas antes das demais prioridades</li>
             <li>• Pessoas com Deficiência (PCD) também têm prioridade</li>
             <li>• A senha é gerada automaticamente</li>
             <li>• O cadastro é válido apenas para o dia atual</li>
@@ -424,8 +425,8 @@ export function RecepcaoPage() {
           <div className="mt-6 p-4 bg-white rounded-lg">
             <h4 className="font-medium text-gray-800 mb-2">Regra de Prioridade</h4>
             <p className="text-sm text-gray-600">
-              A fila prioritária é chamada na proporção de <strong>2 prioritários para 1 normal</strong>,
-              garantindo agilidade no atendimento.
+              A fila prioritária é chamada antes da normal, com precedência interna para pessoas com
+              <strong> 80 anos ou mais</strong>.
             </p>
           </div>
         </div>

@@ -1,5 +1,6 @@
 import { supabase } from '../lib/supabase';
 import type { EleitorFila, LogAcao, Profile } from '../types';
+import { compararOrdemAtendimento } from '../utils/prioridade';
 
 
 
@@ -34,7 +35,7 @@ export async function fetchFilaDia(data: string): Promise<EleitorFila[]> {
     .order('senha', { ascending: true });
 
   if (error) throw error;
-  return result;
+  return [...result].sort(compararOrdemAtendimento);
 }
 
 /**
