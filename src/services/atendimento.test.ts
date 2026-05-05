@@ -22,7 +22,8 @@ describe('atendimento service', () => {
         data: {
           id: 'eleitor-1',
           status: 'aguardando',
-          fila: 'retorno',
+          fila: 'normal',
+          ordem_manual: 8,
           retorno_count: 3,
         },
         error: null,
@@ -45,6 +46,7 @@ describe('atendimento service', () => {
       expect(fromMock).not.toHaveBeenCalled()
 
       expect(result.retorno_count).toBe(3)
+      expect(result.fila).toBe('normal')
     })
 
     it('propaga erro da RPC', async () => {

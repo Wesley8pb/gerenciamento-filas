@@ -33,6 +33,7 @@ export interface EleitorFila {
   nome: string;
   data_nascimento: string;
   pcd: boolean;
+  gestante_crianca_colo: boolean;
   prioritario: boolean;
   dia_atendimento: string;
   senha: number;

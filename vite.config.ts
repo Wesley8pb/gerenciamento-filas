@@ -12,12 +12,11 @@ export default defineConfig({
     host: true,
     proxy: {
       '/supabase-api': {
-        target: 'https://ifndiztgonndotoleefo.supabase.co',
+        target: 'https://filas-56.netlify.app',
         changeOrigin: true,
         agent: supabaseProxyAgent,
         timeout: 30000,
         proxyTimeout: 30000,
-        rewrite: (path) => path.replace(/^\/supabase-api/, ''),
       },
     },
   },

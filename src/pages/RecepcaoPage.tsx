@@ -6,14 +6,16 @@ import { cadastrarEleitor, fetchContagemFila, fetchConfigDia, verificarDuplicida
 import { supabase } from '../lib/supabase';
 import { notify, getFriendlyError } from '../utils/toast';
 import { aplicarMascaraDataNascimento, converterDataNascimentoParaISO } from '../utils/dataNascimento';
+import { temPrioridadeGeral } from '../utils/prioridade';
 import { format, differenceInYears, parseISO, isValid } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { Calendar, AlertCircle, Loader2, Users, Clock, Accessibility, Check, UserPlus, AlertTriangle } from 'lucide-react';
+import { Calendar, AlertCircle, Loader2, Users, Clock, Accessibility, Check, UserPlus, AlertTriangle, Baby } from 'lucide-react';
 
 interface FormData {
   nome: string;
   dataNascimento: string;
   pcd: boolean;
+  gestanteCriancaColo: boolean;
 }
 
 interface CadastroResultado {
@@ -21,6 +23,7 @@ interface CadastroResultado {
   nome: string;
   fila: 'prioritaria' | 'normal';
   pcd: boolean;
+  gestanteCriancaColo: boolean;
   prioritario: boolean;
 }
 
@@ -33,6 +36,7 @@ export function RecepcaoPage() {
     nome: '',
     dataNascimento: '',
     pcd: false,
+    gestanteCriancaColo: false,
   });
   const [idade, setIdade] = useState<number | null>(null);
   const [isPrioritario, setIsPrioritario] = useState(false);
@@ -97,21 +101,30 @@ export function RecepcaoPage() {
         const hoje = new Date();
         const anos = differenceInYears(hoje, dataNasc);
         setIdade(anos);
-        setIsPrioritario(anos >= 60 || formData.pcd);
+        setIsPrioritario(temPrioridadeGeral({
+          data_nascimento: dataNascimentoISO,
+          pcd: formData.pcd,
+          gestante_crianca_colo: formData.gestanteCriancaColo,
+        }, hoje));
       } else {
         setIdade(null);
-        setIsPrioritario(formData.pcd);
+        setIsPrioritario(formData.pcd || formData.gestanteCriancaColo);
       }
     } else {
       setIdade(null);
-      setIsPrioritario(formData.pcd);
+      setIsPrioritario(formData.pcd || formData.gestanteCriancaColo);
     }
-  }, [formData.dataNascimento, formData.pcd]);
+  }, [formData.dataNascimento, formData.pcd, formData.gestanteCriancaColo]);
 
   // Calcular vagas restantes
   const vagasRestantes = limite > 0 ? limite - contagem.total : null;
   const limiteAtingido = limite > 0 && contagem.total >= limite;
   const poucasVagas = vagasRestantes !== null && vagasRestantes <= 5 && vagasRestantes > 0;
+  const motivosPrioridade = [
+    idade !== null && idade >= 80 ? 'Idoso (80+)' : idade !== null && idade >= 60 ? 'Idoso (60+)' : null,
+    formData.pcd ? 'PCD' : null,
+    formData.gestanteCriancaColo ? 'Gestante/criança de colo' : null,
+  ].filter(Boolean).join(' e ');
 
   // Handler do formulário
   const handleSubmit = async (e: React.FormEvent) => {
@@ -169,6 +182,7 @@ export function RecepcaoPage() {
         nome: formData.nome.trim(),
         data_nascimento: dataNascimentoISO,
         pcd: formData.pcd,
+        gestante_crianca_colo: formData.gestanteCriancaColo,
         prioritario: isPrioritario,
         servidor_cadastro_id: user.id,
       });
@@ -178,13 +192,14 @@ export function RecepcaoPage() {
         nome: formData.nome.trim(),
         fila: result.fila,
         pcd: formData.pcd,
+        gestanteCriancaColo: formData.gestanteCriancaColo,
         prioritario: isPrioritario,
       });
       setShowConfirmacao(true);
       notify.success(`Senha ${String(result.senha).padStart(3, '0')} gerada!`);
 
       // Limpar formulário
-      setFormData({ nome: '', dataNascimento: '', pcd: false });
+      setFormData({ nome: '', dataNascimento: '', pcd: false, gestanteCriancaColo: false });
       setIdade(null);
       setIsPrioritario(false);
 
@@ -373,14 +388,27 @@ export function RecepcaoPage() {
               </label>
             </div>
 
+            <div className="flex items-center space-x-3">
+              <input
+                type="checkbox"
+                id="gestante-crianca-colo"
+                checked={formData.gestanteCriancaColo}
+                onChange={(e) => setFormData({ ...formData, gestanteCriancaColo: e.target.checked })}
+                className="w-4 h-4 rounded"
+                disabled={loading || limiteAtingido}
+              />
+              <label htmlFor="gestante-crianca-colo" className="text-sm text-gray-700 flex items-center">
+                <Baby size={16} className="mr-1 text-pink-600" />
+                Gestante/criança de colo
+              </label>
+            </div>
+
             {/* Badge de Prioridade */}
             {isPrioritario && (
               <div className="bg-orange-100 border border-orange-300 rounded-lg p-3 flex items-center space-x-2">
                 <span className="px-2 py-1 bg-orange-500 text-white text-xs font-bold rounded">PRIORIDADE</span>
                 <span className="text-sm text-orange-700">
-                  {idade !== null && idade >= 80 ? 'Idoso (80+)' : idade !== null && idade >= 60 ? 'Idoso (60+)' : ''}
-                  {idade !== null && idade >= 60 && formData.pcd ? ' e ' : ''}
-                  {formData.pcd ? 'PCD' : ''}
+                  {motivosPrioridade}
                 </span>
               </div>
             )}
@@ -437,6 +465,7 @@ export function RecepcaoPage() {
             <li>• Idosos (60 anos ou mais) têm direito à fila prioritária</li>
             <li>• Pessoas com 80 anos ou mais são chamadas antes das demais prioridades</li>
             <li>• Pessoas com Deficiência (PCD) também têm prioridade</li>
+            <li>• Gestantes ou pessoas com criança de colo entram na fila prioritária</li>
             <li>• A senha é gerada automaticamente</li>
             <li>• O cadastro é válido apenas para o dia atual</li>
           </ul>
@@ -477,6 +506,9 @@ export function RecepcaoPage() {
               </p>
               {resultado.pcd && (
                 <p className="text-sm text-purple-600"><strong>PCD:</strong> Sim</p>
+              )}
+              {resultado.gestanteCriancaColo && (
+                <p className="text-sm text-pink-600"><strong>Gestante/criança de colo:</strong> Sim</p>
               )}
             </div>
 

@@ -32,7 +32,7 @@ serve(async (req) => {
     }
 
     const params = await req.json()
-    const { dia_atendimento, nome, data_nascimento, pcd, servidor_cadastro_id } = params
+    const { dia_atendimento, nome, data_nascimento, pcd, gestante_crianca_colo, servidor_cadastro_id } = params
 
     // Validação básica dos campos obrigatórios
     if (!dia_atendimento || !nome || !data_nascimento) {
@@ -42,7 +42,7 @@ serve(async (req) => {
     // ===== USAR RPC ATÔMICA (Correção Crítica #1 e #4) =====
     // A RPC gerar_senha_atomica:
     //   - Resolve race condition com FOR UPDATE
-    //   - Calcula prioridade no servidor (ignora campo do cliente)
+    //   - Calcula prioridade no servidor (idade, PCD ou gestante/criança de colo)
     const { data: result, error: rpcError } = await supabaseClient
       .rpc('gerar_senha_atomica', {
         p_dia_atendimento: dia_atendimento,
@@ -52,6 +52,7 @@ serve(async (req) => {
         p_prioritario: false, // Ignorado — RPC calcula baseado em data_nascimento
         p_servidor_cadastro_id: servidor_cadastro_id || user.id,
         p_tipo: 'presencial',
+        p_gestante_crianca_colo: gestante_crianca_colo || false,
       })
 
     if (rpcError) {

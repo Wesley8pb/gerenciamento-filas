@@ -47,6 +47,7 @@ serve(async (req) => {
         p_prioritario: false, // Ignorado — RPC calcula baseado em data_nascimento
         p_servidor_cadastro_id: servidor_cadastro_id || user.id,
         p_tipo: 'agendado',
+        p_gestante_crianca_colo: false,
       })
 
     if (rpcError) {

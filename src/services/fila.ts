@@ -9,6 +9,7 @@ interface CadastrarEleitorParams {
   nome: string;
   data_nascimento: string;
   pcd: boolean;
+  gestante_crianca_colo: boolean;
   prioritario: boolean;
   servidor_cadastro_id: string;
 }

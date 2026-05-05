@@ -1,12 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import type { EleitorFila } from '../types';
-import { calcularIdade, compararOrdemAtendimento, temPrioridade80Mais } from './prioridade';
+import { calcularIdade, compararOrdemAtendimento, temPrioridade80Mais, temPrioridadeGeral } from './prioridade';
 
 const eleitorBase: EleitorFila = {
   id: 'e-1',
   nome: 'Eleitor',
   data_nascimento: '1960-01-01',
   pcd: false,
+  gestante_crianca_colo: false,
   prioritario: true,
   dia_atendimento: '2026-05-01',
   senha: 1,
@@ -32,6 +33,26 @@ describe('prioridade', () => {
     expect(calcularIdade('1946-05-01', referencia)).toBe(80);
     expect(temPrioridade80Mais({ data_nascimento: '1946-05-01' }, referencia)).toBe(true);
     expect(temPrioridade80Mais({ data_nascimento: '1946-05-02' }, referencia)).toBe(false);
+  });
+
+  it('identifica prioridade geral por idade, PCD ou gestante/criança de colo', () => {
+    expect(temPrioridadeGeral({
+      data_nascimento: '1990-01-01',
+      pcd: false,
+      gestante_crianca_colo: true,
+    }, referencia)).toBe(true);
+
+    expect(temPrioridadeGeral({
+      data_nascimento: '1990-01-01',
+      pcd: true,
+      gestante_crianca_colo: false,
+    }, referencia)).toBe(true);
+
+    expect(temPrioridadeGeral({
+      data_nascimento: '1990-01-01',
+      pcd: false,
+      gestante_crianca_colo: false,
+    }, referencia)).toBe(false);
   });
 
   it('ordena pessoas com 80 anos ou mais antes das demais prioridades', () => {
@@ -68,5 +89,41 @@ describe('prioridade', () => {
     const ordenados = [primeiro, segundo].sort((a, b) => compararOrdemAtendimento(a, b, referencia));
 
     expect(ordenados.map((eleitor) => eleitor.id)).toEqual(['segundo', 'primeiro']);
+  });
+
+  it('mantem retorno resgatado depois dos normais que ja aguardavam', () => {
+    const normalSenha5: EleitorFila = {
+      ...eleitorBase,
+      id: 'normal-senha-5',
+      prioritario: false,
+      fila: 'normal',
+      senha: 5,
+    };
+    const normalManual9: EleitorFila = {
+      ...eleitorBase,
+      id: 'normal-manual-9',
+      prioritario: false,
+      fila: 'normal',
+      senha: 20,
+      ordem_manual: 9,
+    };
+    const retornoResgatado: EleitorFila = {
+      ...eleitorBase,
+      id: 'retorno-resgatado',
+      prioritario: false,
+      fila: 'normal',
+      senha: 1,
+      ordem_manual: 10,
+      retorno_count: 1,
+    };
+
+    const ordenados = [retornoResgatado, normalManual9, normalSenha5]
+      .sort((a, b) => compararOrdemAtendimento(a, b, referencia));
+
+    expect(ordenados.map((eleitor) => eleitor.id)).toEqual([
+      'normal-senha-5',
+      'normal-manual-9',
+      'retorno-resgatado',
+    ]);
   });
 });

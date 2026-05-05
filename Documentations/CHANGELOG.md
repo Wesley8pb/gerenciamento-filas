@@ -1,5 +1,33 @@
 # CHANGELOG
 
+## [1.2.4] - 2026-05-05
+
+### Melhoria — Retorno de ausentes para fila normal e nova prioridade gestante/criança de colo
+
+- **Retorno de ausentes**: o resgate manual continua existindo, mas agora devolve o eleitor para `fila = 'normal'`, com `status = 'aguardando'`, `retorno_count` incrementado, `horario_retorno` registrado e `ordem_manual` no fim da fila normal existente naquele momento.
+- **Ordenação de atendimento**: 80+ continuam antes das demais prioridades. Dentro da fila normal, a posição efetiva usa `ordem_manual` quando existir; caso contrário, usa `senha`.
+- **Nova prioridade de Recepção**: adicionada marcação "Gestante/criança de colo", enviada ao backend e considerada prioritária pela RPC `gerar_senha_atomica`.
+- **Agendamento preservado**: o fluxo de Agendamento não exibe a nova marcação e envia `p_gestante_crianca_colo = false`.
+- **Relatórios preservados**: gestante/criança de colo aparece apenas como parte do grupo geral `Prioritário`; PCD continua separado com filtro, resumo e indicação nominal próprios.
+- **Supabase**: adicionada coluna `gestante_crianca_colo` em `eleitores_fila` e atualizadas as RPCs `gerar_senha_atomica`, `registrar_retorno_atomico` e `chamar_proximo_atomico`.
+- **Deploy validado**: migration remota aplicada como `20260505181740 ajustar_retorno_normal_gestante_crianca_colo`; Edge Functions `gerar-senha` e `agendar-eleitor` publicadas com `--use-api --no-verify-jwt`.
+
+### Arquivos Modificados / Criados
+
+- `src/pages/RecepcaoPage.tsx` — Checkbox "Gestante/criança de colo" e envio do novo campo.
+- `src/types/index.ts` — Campo `gestante_crianca_colo` no tipo `EleitorFila`.
+- `src/services/fila.ts` — Ordenação por posição efetiva.
+- `src/utils/prioridade.ts` — Cálculo visual de prioridade incluindo gestante/criança de colo e regra 80+.
+- `supabase/functions/gerar-senha/index.ts` — Encaminhamento do novo parâmetro para a RPC.
+- `supabase/functions/agendar-eleitor/index.ts` — Agendamento enviando `p_gestante_crianca_colo = false`.
+- `supabase/migrations/20260505180555_ajustar-retorno-normal-gestante-crianca-colo.sql` — Coluna nova e atualização das RPCs.
+- `src/services/atendimento.test.ts` — Testes do retorno manual para fila normal.
+- `src/services/fila.test.ts` — Testes da ordenação efetiva.
+- `src/utils/prioridade.test.ts` — Testes de prioridade por idade, PCD e gestante/criança de colo.
+- `src/services/relatorio.test.ts` — Cobertura para manter PCD separado e gestante/criança de colo dentro do grupo geral prioritário.
+
+---
+
 ## [1.2.3] - 2026-04-20
 
 ### 🚀 Melhoria — Solução de Proxy Reverso para Rede Institucional (TRE/PB)

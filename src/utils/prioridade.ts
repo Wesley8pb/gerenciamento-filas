@@ -13,6 +13,13 @@ export function temPrioridade80Mais(eleitor: Pick<EleitorFila, 'data_nascimento'
   return calcularIdade(eleitor.data_nascimento, referencia) >= 80;
 }
 
+export function temPrioridadeGeral(
+  eleitor: Pick<EleitorFila, 'data_nascimento' | 'pcd' | 'gestante_crianca_colo'>,
+  referencia?: Date
+): boolean {
+  return calcularIdade(eleitor.data_nascimento, referencia) >= 60 || eleitor.pcd || eleitor.gestante_crianca_colo;
+}
+
 export function compararOrdemAtendimento(a: EleitorFila, b: EleitorFila, referencia?: Date): number {
   if (a.fila !== b.fila) {
     const ordemFila = { prioritaria: 0, normal: 1, retorno: 2 };
@@ -24,8 +31,8 @@ export function compararOrdemAtendimento(a: EleitorFila, b: EleitorFila, referen
     if (prioridade80 !== 0) return prioridade80;
   }
 
-  const ordemManualA = a.ordem_manual ?? Number.MAX_SAFE_INTEGER;
-  const ordemManualB = b.ordem_manual ?? Number.MAX_SAFE_INTEGER;
+  const ordemManualA = a.ordem_manual ?? a.senha;
+  const ordemManualB = b.ordem_manual ?? b.senha;
   if (ordemManualA !== ordemManualB) return ordemManualA - ordemManualB;
 
   return a.senha - b.senha;

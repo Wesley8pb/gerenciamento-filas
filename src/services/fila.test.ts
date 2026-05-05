@@ -28,6 +28,7 @@ describe('fila service', () => {
           nome: 'João',
           data_nascimento: '1960-01-01',
           pcd: false,
+          gestante_crianca_colo: false,
           prioritario: false,
           servidor_cadastro_id: 'srv-1',
         })
@@ -57,6 +58,7 @@ describe('fila service', () => {
         nome: 'Maria',
         data_nascimento: '1970-05-20',
         pcd: false,
+        gestante_crianca_colo: false,
         prioritario: false,
         servidor_cadastro_id: 'srv-1',
       }
@@ -82,6 +84,7 @@ describe('fila service', () => {
           nome: 'A',
           data_nascimento: '2000-01-01',
           pcd: false,
+          gestante_crianca_colo: false,
           prioritario: false,
           servidor_cadastro_id: 'srv-1',
         })
